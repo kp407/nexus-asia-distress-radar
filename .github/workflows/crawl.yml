@@ -48,6 +48,7 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
         run: |
           GROUP="${{ github.event.inputs.crawler_group || 'distress' }}"
