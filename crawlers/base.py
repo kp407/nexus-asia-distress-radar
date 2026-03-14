@@ -186,12 +186,13 @@ class BaseCrawler(ABC):
         )
 
     def safe_get(self, session, url: str, **kwargs) -> object | None:
-        """HTTP GET with error handling."""
+        """HTTP GET with error handling. kwargs override defaults (incl. timeout)."""
+        timeout = kwargs.pop('timeout', self.REQUEST_TIMEOUT)
         try:
             resp = session.get(
                 url,
                 headers=self.HEADERS,
-                timeout=self.REQUEST_TIMEOUT,
+                timeout=timeout,
                 **kwargs,
             )
             if resp.status_code == 200:
