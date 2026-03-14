@@ -84,12 +84,13 @@ class DRTPortalCrawler(BaseCrawler):
     CATEGORY = 'legal'
 
     CRAWL_URLS = [
+        # DRT portal restructured — try current paths
+        'https://drt.gov.in/causelist',
+        'https://drt.gov.in/orders',
+        'https://drt.gov.in/judgments',
+        # Older paths as fallback
         'https://drt.gov.in/DRT_Mumbai/causelistschedule.aspx',
-        'https://drt.gov.in/DRT_Mumbai/orders.aspx',
-        'https://drt.gov.in/DRT_Pune/causelistschedule.aspx',
-        'https://drt.gov.in/DRT_Ahmedabad/causelistschedule.aspx',
         'https://drt.gov.in/content/drt-mumbai',
-        'https://drt.gov.in/content/drt-pune',
     ]
 
     def crawl(self) -> list[DistressEvent]:
