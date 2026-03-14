@@ -41,7 +41,7 @@ class NCLTCrawler(BaseCrawler):
                     keywords = self.detect_keywords(text)
                     if not keywords:
                         # All NCLT content is inherently distress-related
-                        keywords = [("nclt", "nclt")]
+                        keywords = [("nclt", "cirp")]
 
                     companies = self.extract_company_names(text)
                     company_name = companies[0] if companies else "NCLT Matter"
