@@ -135,8 +135,10 @@ class PEFundActivityCrawler(BaseCrawler):
 
     # PE/family office curated news sources
     PE_FEEDS = [
-        ('VCCircle',     'https://www.vccircle.com/feed'),
-        ('DealStreetAsia','https://www.dealstreetasia.com/rss'),
+        ('VCCircle',     'https://www.vccircle.com/feeds/all'),
+        ('VCCircle',     'https://www.vccircle.com/feed/rss'),
+        ('Inc42',        'https://inc42.com/feed/'),
+        ('Mint PE',      'https://www.livemint.com/rss/companies'),
         ('ET Realty',    'https://realty.economictimes.indiatimes.com/rss/topstories'),
         ('MoneyControl CRE', 'https://www.moneycontrol.com/rss/business.xml'),
     ]
