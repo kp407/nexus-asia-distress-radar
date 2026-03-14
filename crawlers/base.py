@@ -16,8 +16,15 @@ logger = logging.getLogger(__name__)
 # DISTRESS SIGNAL KEYWORDS & CATEGORIES
 # ─────────────────────────────────────────────
 SIGNAL_KEYWORDS = {
-    "insolvency": ["insolvency", "insolvent"],
-    "cirp": ["cirp", "corporate insolvency resolution process", "resolution professional", "resolution applicant"],
+    "insolvency": [
+        "insolvency", "insolvent",
+        "bankruptcy", "bankrupt",
+    ],
+    "cirp": [
+        "cirp", "corporate insolvency resolution process",
+        "resolution professional",
+        "nclt", "national company law tribunal", "iba 2016", "ibc", "insolvency code",
+    ],
     "liquidation": ["liquidation", "liquidator", "winding up", "wound up"],
     "sarfaesi": ["sarfaesi", "symbolic possession", "physical possession", "secured creditor notice"],
     "default": ["default", "defaulted", "npa", "non-performing", "stressed loan", "bad loan"],
@@ -26,9 +33,7 @@ SIGNAL_KEYWORDS = {
     "debt_resolution": ["debt resolution", "resolution plan", "settlement plan"],
     "creditor_action": ["creditor action", "lender action", "debt recovery tribunal", "drt", "enforcement action"],
     "auction": ["auction", "e-auction", "bank auction", "asset auction", "property auction", "reserve price"],
-    "cirp": ["nclt", "national company law tribunal", "iba 2016", "ibc", "insolvency code"],
     "regulatory": ["ibbi", "insolvency board", "resolution applicant"],
-    "insolvency": ["bankruptcy", "bankrupt"],
 }
 
 ALL_KEYWORDS = [kw for kws in SIGNAL_KEYWORDS.values() for kw in kws]
