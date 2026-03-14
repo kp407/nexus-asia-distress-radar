@@ -3,25 +3,27 @@
 # NEXUS ASIA — Complete Crawler Registry
 # ═══════════════════════════════════════════════════════════════════════════
 
-# ── Original crawlers ─────────────────────────────────────────────────────
+# ── Core distress crawlers ─────────────────────────────────────────────────
 from .economic_times import EconomicTimesCrawler
 from .business_standard import BusinessStandardCrawler
 from .mint import MintCrawler
 from .reuters import ReutersCrawler
 from .ibbi import IBBICrawler
 from .regulatory import NCLTCrawler, MCACrawler
-from .bank_auctions import IBAPIAuctionCrawler, SBIAuctionCrawler
 
-# ── Multi-bank auction crawlers (8 banks + aggregator) ───────────────────
+# ── Bank auction crawlers (Tier 1 aggregators + Tier 2 direct + Tier 3 PDF) ─
 from .multi_bank_auctions import (
+    IBAPIAuctionCrawler,
+    BankAuctionsCoInCrawler,
+    SarfaesiDotComCrawler,
     BankOfBarodaAuctionCrawler,
-    PNBauctionCrawler,
+    PNBAuctionCrawler,
     CanaraBankAuctionCrawler,
     UnionBankAuctionCrawler,
     BankOfMaharashtraAuctionCrawler,
     CentralBankAuctionCrawler,
     IndianOverseasBankAuctionCrawler,
-    BankAuctionDotInCrawler,
+    SBIAuctionCrawler,
 )
 
 # ── DRT / SARFAESI / Legal NPA crawlers ──────────────────────────────────
@@ -51,10 +53,9 @@ from .investor_deal_match import (
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# CRAWLER GROUPS — use these to run subsets
+# CRAWLER GROUPS
 # ═══════════════════════════════════════════════════════════════════════════
 
-# Core distress signal crawlers (run every 30 min)
 DISTRESS_CRAWLERS = [
     EconomicTimesCrawler,
     BusinessStandardCrawler,
@@ -65,46 +66,42 @@ DISTRESS_CRAWLERS = [
     MCACrawler,
 ]
 
-# Bank auction crawlers (run every 4 hours)
+# Tier 1 aggregators first (highest yield), then direct banks, then PDF harvesters
 BANK_AUCTION_CRAWLERS = [
-    IBAPIAuctionCrawler,
-    SBIAuctionCrawler,
+    IBAPIAuctionCrawler,        # RBI aggregator — JSON API
+    BankAuctionsCoInCrawler,    # Third-party aggregator — HTML cards
+    SarfaesiDotComCrawler,      # SARFAESI notice aggregator
     BankOfBarodaAuctionCrawler,
-    PNBauctionCrawler,
+    PNBAuctionCrawler,
     CanaraBankAuctionCrawler,
     UnionBankAuctionCrawler,
     BankOfMaharashtraAuctionCrawler,
     CentralBankAuctionCrawler,
     IndianOverseasBankAuctionCrawler,
-    BankAuctionDotInCrawler,
+    SBIAuctionCrawler,          # PDF link harvester
 ]
 
-# DRT + Legal NPA — pre-auction intelligence (run daily)
 LEGAL_CRAWLERS = [
     DRTPortalCrawler,
     SARFAESINoticeCrawler,
     NPALawyerNetworkCrawler,
 ]
 
-# CRE intelligence — pre-leased assets (run daily)
 CRE_CRAWLERS = [
     PreLeasedCommercialCrawler,
     GradeAOfficeVacancyCrawler,
 ]
 
-# ARC / NARCL portfolio (run daily)
 ARC_CRAWLERS = [
     NARCLCrawler,
     ARCPortfolioCrawler,
 ]
 
-# Market signals (run every 4 hours)
 MARKET_CRAWLERS = [
     PEFundActivityCrawler,
     StockMarketDistressSignalCrawler,
 ]
 
-# ─── Master list ───────────────────────────────────────────────────────────
 ALL_CRAWLERS = (
     DISTRESS_CRAWLERS +
     BANK_AUCTION_CRAWLERS +
