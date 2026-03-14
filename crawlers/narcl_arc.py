@@ -26,6 +26,7 @@ import re
 import time
 import logging
 import requests
+from .firecrawl_client import FirecrawlSession
 from bs4 import BeautifulSoup
 from urllib.parse import quote
 from .base import BaseCrawler, DistressEvent
@@ -79,7 +80,7 @@ class NARCLCrawler(BaseCrawler):
 
     def crawl(self) -> list[DistressEvent]:
         events = []
-        session = requests.Session()
+        session = FirecrawlSession()
 
         # 1. Direct NARCL portal
         narcl_dead = False
@@ -218,7 +219,7 @@ class ARCPortfolioCrawler(BaseCrawler):
 
     def crawl(self) -> list[DistressEvent]:
         events = []
-        session = requests.Session()
+        session = FirecrawlSession()
 
         # 1. Direct ARC portal crawl
         for arc_name, base_url, portfolio_url in self.ARC_SOURCES:
