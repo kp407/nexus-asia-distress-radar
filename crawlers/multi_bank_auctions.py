@@ -239,7 +239,7 @@ def row_to_event(crawler, row):
     return crawler.make_event(
         company_name=company,
         keyword='asset auction',
-        category='asset_auction',
+        category='auction',
         url=row['url'],
         headline=headline,
         snippet=row['text'],
@@ -381,7 +381,7 @@ class IBAPIAuctionCrawler(BaseCrawler):
             events.append(self.make_event(
                 company_name=f'{bank} Auction{loc_label} [{asset_label}]',
                 keyword='asset auction',
-                category='asset_auction',
+                category='auction',
                 url=str(item_url),
                 headline=headline,
                 snippet=prop_desc[:800],
@@ -491,7 +491,7 @@ class BankAuctionsCoInCrawler(BaseCrawler):
                 events.append(self.make_event(
                     company_name=f'{bank} Auction{loc_label} [{asset_label}]',
                     keyword='asset auction',
-                    category='asset_auction',
+                    category='auction',
                     url=card_url,
                     headline=headline,
                     snippet=text[:700],
@@ -578,7 +578,7 @@ class SarfaesiDotComCrawler(BaseCrawler):
                 auction_date = extract_auction_date(text)
                 score        = deal_score(price, location, is_mmr, asset_class)
                 is_possession = 'possession' in url
-                category     = 'sarfaesi' if is_possession else 'asset_auction'
+                category     = 'sarfaesi' if is_possession else 'auction'
                 keyword      = 'sarfaesi' if is_possession else 'asset auction'
 
                 company  = borrower[:60] if len(borrower) > 4 else f'{bank} SARFAESI Notice'
@@ -770,7 +770,7 @@ class SBIAuctionCrawler(BaseCrawler):
                 events.append(self.make_event(
                     company_name=f'SBI Auction{loc_label} [{asset_label}]',
                     keyword='asset auction',
-                    category='asset_auction',
+                    category='auction',
                     url=full_url,
                     headline=headline,
                     snippet=text,
