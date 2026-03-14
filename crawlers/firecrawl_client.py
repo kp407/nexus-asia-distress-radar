@@ -178,6 +178,47 @@ class FakeResponse:
         return self._json
 
 
+
+def _markdown_to_html(md: str) -> str:
+    """
+    Convert markdown content to HTML for BeautifulSoup parsing.
+    Focuses on tables (most important for sarfaesi.com, DRT, bank portals)
+    and preserves all text content for keyword matching.
+    """
+    if not md:
+        return ""
+    
+    lines = md.split("\n")
+    html_parts = ["<html><body>"]
+    in_table = False
+    
+    for line in lines:
+        stripped = line.strip()
+        
+        # Detect markdown table rows: | col1 | col2 | col3 |
+        if stripped.startswith("|") and stripped.endswith("|"):
+            # Skip separator rows like |---|---|---|
+            if re.match(r"^\|[-:\s|]+\|$", stripped):
+                continue
+            if not in_table:
+                html_parts.append("<table>")
+                in_table = True
+            cells = [c.strip() for c in stripped.split("|")[1:-1]]
+            html_parts.append("<tr>" + "".join(f"<td>{c}</td>" for c in cells) + "</tr>")
+        else:
+            if in_table:
+                html_parts.append("</table>")
+                in_table = False
+            if stripped:
+                # Wrap non-table content in divs for keyword matching
+                html_parts.append(f"<div>{stripped}</div>")
+    
+    if in_table:
+        html_parts.append("</table>")
+    html_parts.append("</body></html>")
+    return "\n".join(html_parts)
+
+
 def firecrawl_scrape(url: str, wait_ms: int = 2000) -> Optional[FakeResponse]:
     """
     Call Firecrawl /scrape endpoint for a single URL.
@@ -218,7 +259,14 @@ def firecrawl_scrape(url: str, wait_ms: int = 2000) -> Optional[FakeResponse]:
                 # Prefer HTML for BeautifulSoup parsing
                 html = data.get("data", {}).get("html", "")
                 md   = data.get("data", {}).get("markdown", "")
-                content = html if html else md
+                if html and len(html) > 500:
+                    content = html
+                elif md:
+                    # Convert markdown tables → HTML so BeautifulSoup
+                    # can find <tr>/<td> tags (sarfaesi.com, DRT etc)
+                    content = _markdown_to_html(md)
+                else:
+                    content = html or md
                 logger.info(f"  Firecrawl ✓ [{url[:60]}] — {len(content)} chars")
                 return FakeResponse(content, 200, url)
             else:
@@ -388,21 +436,16 @@ class FirecrawlSession:
         if self._firecrawl_available and _needs_firecrawl(url):
             logger.info(f"  → Firecrawl: {url[:70]}")
             domain = _get_domain(url)
-            # Property portals are React SPAs — need longer JS render wait
             SLOW_DOMAINS = [
-                # Govt portals — slow to load
-                "drt.gov.in", "nclt.gov.in", "ibbi.gov.in", "mca.gov.in",
-                # ARC sites — heavy JS
-                "narcl.co.in", "edelweissarc.com", "arcil.com",
-                "kotakarc.com", "jmfarc.com", "phoenixarc.co.in",
-                # Property portals — React SPAs need full render
-                "magicbricks.com", "99acres.com", "squareyards.com",
-                "anarock.com", "jll.co.in", "cbre.co.in",
-                "colliers.com", "knightfrank.co.in",
-                # Bank portals — slow govt infrastructure
-                "sbi.co.in", "pnbindia.in", "bankofbaroda.in",
-                "unionbankofindia.co.in", "canarabank.com",
-                "centralbankofindia.co.in", "iob.in",
+                "drt.gov.in","nclt.gov.in","ibbi.gov.in","mca.gov.in",
+                "narcl.co.in","edelweissarc.com","arcil.com",
+                "kotakarc.com","jmfarc.com","phoenixarc.co.in",
+                "magicbricks.com","99acres.com","squareyards.com",
+                "anarock.com","jll.co.in","cbre.co.in",
+                "colliers.com","knightfrank.co.in",
+                "sbi.co.in","pnbindia.in","bankofbaroda.in",
+                "unionbankofindia.co.in","canarabank.com",
+                "centralbankofindia.co.in","iob.in",
             ]
             wait = 5000 if any(d in domain for d in SLOW_DOMAINS) else self.firecrawl_wait_ms
 
