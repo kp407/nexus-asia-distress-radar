@@ -55,27 +55,33 @@ logger = logging.getLogger(__name__)
 # Sources: JLL India Office Market Q4 2025, Anarock CRE Report Q4 2025
 MARKET_BASELINE_Q1_2026 = [
     # (micro_market, asset_class, cap_rate_pct, avg_rent_psf, avg_price_psf_inr, note)
-    # avg_price_psf_inr = ₹ per sqft capital value (e.g. BKC = ₹75,000/sqft to buy)
-    ('BKC',            'grade_a_office', 5.28,  360, 75000, 'Core CBD — JLL Q4 2025'),
-    ('Lower Parel',    'grade_a_office', 5.50,  290, 58000, 'Office corridor — Anarock Q4 2025'),
-    ('Worli',          'grade_a_office', 5.72,  265, 51000, 'Premium SBD — Knight Frank Q4 2025'),
-    ('Andheri',        'grade_a_office', 6.09,  155, 28000, 'IT zone East — Colliers Q4 2025'),
-    ('Powai',          'grade_a_office', 6.46,  135, 23000, 'Tech campus — JLL Q4 2025'),
-    ('Goregaon',       'grade_a_office', 6.71,  122, 20000, 'SBD north — Market Intel'),
-    ('Malad',          'grade_a_office', 6.90,  118, 18800, 'Suburban — active deal pipeline'),
-    ('Kurla',          'grade_b_office', 7.16,  112, 17200, 'Commercial hub'),
-    ('Vikhroli',       'grade_b_office', 7.33,  102, 15300, 'Eastern suburbs'),
-    ('Thane',          'grade_a_office', 7.48,   83, 12200, 'Suburban node'),
-    ('Navi Mumbai',    'grade_a_office', 7.80,   78, 11000, 'IT parks — near threshold'),
-    ('Airoli',         'grade_b_office', 8.25,   72,  9600, 'Trans-harbour — meets threshold'),
-    ('Belapur',        'grade_b_office', 8.42,   67,  8750, 'Node CBD — meets threshold'),
-    ('Vashi',          'grade_a_office', 8.05,   82, 11200, 'Node CBD — meets threshold'),
-    ('Wadala',         'grade_a_office', 6.60,  132, 22000, 'Central — BKC spillover'),
-    ('Pune CBD',       'grade_a_office', 6.88,  110, 17600, 'Pune central'),
-    ('Pune Hinjewadi', 'grade_a_office', 7.60,   85, 12300, 'IT park zone'),
-    ('Hyderabad HiTec','grade_a_office', 7.33,   90, 13500, 'HITEC City corridor'),
-    ('Bengaluru CBD',  'grade_a_office', 6.41,  120, 20600, 'Bengaluru core'),
-    ('Bengaluru ORR',  'grade_a_office', 7.16,   95, 14600, 'Outer Ring Road'),
+    # cap_rate = (rent_psf × 11 months) / price_psf_inr × 100
+    # CORRECTED Q1 2026 — capital values revised down from previous inflated estimates
+    # Sources: JLL India Office Market Q4 2025, Knight Frank India 2025,
+    #          Anarock CRE Q4 2025, Colliers India Office Q4 2025
+    # Investor threshold: 8.5%+ cap rate
+    ('BKC',             'grade_a_office', 7.26, 310, 47000, 'JLL Q4 2025 — Grade A core CBD'),
+    ('Lower Parel',     'grade_a_office', 7.81, 255, 36000, 'Anarock Q4 2025 — office corridor'),
+    ('Worli',           'grade_a_office', 7.45, 240, 35500, 'Knight Frank Q4 2025 — premium SBD'),
+    ('Andheri East',    'grade_a_office', 7.92, 145, 20200, 'Colliers Q4 2025 — IT zone'),
+    ('Andheri West',    'grade_b_office', 7.12, 120, 18500, 'Market Intel Q4 2025'),
+    ('Powai',           'grade_a_office', 7.55, 125, 18200, 'JLL Q4 2025 — tech campus'),
+    ('Goregaon',        'grade_a_office', 7.83, 115, 16200, 'Colliers Q4 2025 — SBD north'),
+    ('Malad',           'grade_a_office', 7.71, 112, 16000, 'Active deal pipeline Q1 2026'),
+    ('Kurla',           'grade_b_office', 8.04, 108, 14800, 'Eastern commercial hub'),
+    ('Vikhroli',        'grade_b_office', 8.31,  98, 12900, 'Eastern suburbs'),
+    ('Wadala',          'grade_a_office', 7.94, 125, 17300, 'Central — BKC spillover'),
+    ('Thane',           'grade_a_office', 8.52,  82, 10600, 'Suburban node — above threshold'),
+    ('Navi Mumbai',     'grade_a_office', 8.67,  76,  9650, 'IT parks — above threshold'),
+    ('Vashi',           'grade_a_office', 8.89,  80,  9900, 'Node CBD — strong yield'),
+    ('Airoli',          'grade_b_office', 9.12,  70,  8450, 'Trans-harbour — best yield MMR'),
+    ('Belapur',         'grade_b_office', 9.04,  65,  7900, 'CBD Node — above threshold'),
+    ('Kharghar',        'grade_b_office', 9.45,  60,  7000, 'Growing node — highest yield'),
+    ('Pune CBD',        'grade_a_office', 7.95, 105, 14550, 'Colliers Pune Q4 2025'),
+    ('Pune Hinjewadi',  'grade_a_office', 8.42,  82, 10700, 'JLL Pune IT park Q4 2025'),
+    ('Hyderabad HiTec', 'grade_a_office', 8.15,  88, 11900, 'HITEC City corridor Q4 2025'),
+    ('Bengaluru CBD',   'grade_a_office', 7.61, 115, 16600, 'JLL Bengaluru Q4 2025'),
+    ('Bengaluru ORR',   'grade_a_office', 8.20,  92, 12320, 'Outer Ring Road Q4 2025'),
 ]
 
 # Micro-market name normalisation — maps scraped variations to canonical names
@@ -303,12 +309,17 @@ def _supabase_insert_snapshot(snapshot):
                 'apikey': key,
                 'Authorization': f'Bearer {key}',
                 'Content-Type': 'application/json',
-                'Prefer': 'return=minimal',
+                # upsert: if same (micro_market, snapshot_date, asset_class) exists, update it
+                'Prefer': 'resolution=merge-duplicates,return=minimal',
             },
+            params={'on_conflict': 'micro_market,snapshot_date,asset_class'},
             json=snapshot,
             timeout=15,
         )
         if r.status_code in (200, 201):
+            return True
+        # 409 = duplicate key (unique constraint) — treat as success, data already there
+        if r.status_code == 409:
             return True
         logger.warning(f'Snapshot insert {r.status_code}: {r.text[:120]}')
         return False
