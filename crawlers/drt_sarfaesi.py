@@ -24,6 +24,7 @@ import re
 import time
 import logging
 import requests
+from .firecrawl_client import FirecrawlSession
 from bs4 import BeautifulSoup
 from urllib.parse import quote
 from .base import BaseCrawler, DistressEvent
@@ -95,7 +96,7 @@ class DRTPortalCrawler(BaseCrawler):
 
     def crawl(self) -> list[DistressEvent]:
         events = []
-        session = requests.Session()
+        session = FirecrawlSession()
 
         for url in self.CRAWL_URLS:
             resp = self.safe_get(session, url)
@@ -203,7 +204,7 @@ class SARFAESINoticeCrawler(BaseCrawler):
 
     def crawl(self) -> list[DistressEvent]:
         events = []
-        session = requests.Session()
+        session = FirecrawlSession()
 
         # 1. IBAPI direct crawl
         for url in self.CRAWL_URLS:
@@ -432,7 +433,7 @@ class NPALawyerNetworkCrawler(BaseCrawler):
 
     def crawl(self) -> list[DistressEvent]:
         events = []
-        session = requests.Session()
+        session = FirecrawlSession()
 
         # 1. Legal RSS feeds
         for source_name, feed_url in self.LEGAL_FEEDS:
