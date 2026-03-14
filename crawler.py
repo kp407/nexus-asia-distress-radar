@@ -31,6 +31,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, date
 from urllib.parse import quote
 import requests
+from crawlers.firecrawl_client import FirecrawlSession
 from bs4 import BeautifulSoup
 
 # ═══════════════════════════════════════════════
@@ -402,7 +403,7 @@ BASE_HEADERS = {
 }
 
 def make_session():
-    s = requests.Session()
+    s = FirecrawlSession()
     s.headers.update(BASE_HEADERS)
     return s
 
