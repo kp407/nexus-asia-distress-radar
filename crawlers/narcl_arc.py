@@ -82,9 +82,13 @@ class NARCLCrawler(BaseCrawler):
         session = requests.Session()
 
         # 1. Direct NARCL portal
+        narcl_dead = False
         for url in self.CRAWL_URLS:
-            resp = self.safe_get(session, url)
+            if narcl_dead:
+                break  # site is down — skip all remaining URLs, save 80s
+            resp = self.safe_get(session, url, timeout=5)
             if not resp:
+                narcl_dead = True
                 continue
 
             soup = BeautifulSoup(resp.text, 'html.parser')
