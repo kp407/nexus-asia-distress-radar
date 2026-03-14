@@ -43,7 +43,7 @@ class IBAPIAuctionCrawler(BaseCrawler):
                 keywords = self.detect_keywords(text)
                 if not keywords:
                     if any(w in text.lower() for w in ["auction", "sarfaesi", "npa", "reserve price"]):
-                        keywords = [("auction", "asset_auction")]
+                        keywords = [("auction", "auction")]
                     else:
                         continue
 
@@ -113,7 +113,7 @@ class SBIAuctionCrawler(BaseCrawler):
                     events.append(self.make_event(
                         company_name=company_name,
                         keyword="asset auction",
-                        category="asset_auction",
+                        category="auction",
                         url=full_url,
                         headline=text,
                         snippet=text,
