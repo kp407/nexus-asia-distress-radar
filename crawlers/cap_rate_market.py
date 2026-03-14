@@ -36,6 +36,7 @@ import json
 import time
 import logging
 import requests
+from .firecrawl_client import FirecrawlSession
 from datetime import date, datetime, timezone
 from urllib.parse import quote
 from collections import defaultdict
@@ -289,10 +290,7 @@ def compute_cap_from_psf(rent_psf, price_psf_inr):
 # ─────────────────────────────────────────────────────────────
 
 def _supabase_insert_snapshot(snapshot):
-    """Upsert a single cap_rate_snapshot row via Supabase REST API.
-    Uses on_conflict=micro_market,asset_class,snapshot_date so re-runs on
-    the same day update the existing row instead of creating duplicates.
-    """
+    """Insert a single cap_rate_snapshot row via Supabase REST API."""
     url  = os.environ.get('SUPABASE_URL', '').rstrip('/')
     key  = os.environ.get('SUPABASE_SERVICE_ROLE_KEY', '') or os.environ.get('SUPABASE_ANON_KEY', '')
     if not url or not key:
@@ -300,23 +298,22 @@ def _supabase_insert_snapshot(snapshot):
         return False
     try:
         r = requests.post(
-            f'{url}/rest/v1/cap_rate_snapshots'
-            f'?on_conflict=micro_market,asset_class,snapshot_date',
+            f'{url}/rest/v1/cap_rate_snapshots',
             headers={
                 'apikey': key,
                 'Authorization': f'Bearer {key}',
                 'Content-Type': 'application/json',
-                'Prefer': 'resolution=merge-duplicates,return=minimal',
+                'Prefer': 'return=minimal',
             },
             json=snapshot,
             timeout=15,
         )
         if r.status_code in (200, 201):
             return True
-        logger.warning(f'Snapshot upsert {r.status_code}: {r.text[:120]}')
+        logger.warning(f'Snapshot insert {r.status_code}: {r.text[:120]}')
         return False
     except Exception as e:
-        logger.error(f'Snapshot upsert error: {e}')
+        logger.error(f'Snapshot insert error: {e}')
         return False
 
 
@@ -391,7 +388,7 @@ class CapRateMarketCrawler(BaseCrawler):
         Main entry point. Returns DistressEvents for the distress feed
         AND writes cap_rate_snapshot rows to DB directly.
         """
-        session = requests.Session()
+        session = FirecrawlSession()
         session.headers.update(self.HEADERS)
 
         # Accumulator: market → list of observed (rent_psf, cap_rate, source)
