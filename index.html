@@ -1,0 +1,3279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>NEXUS ASIA — Distress Radar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ═══════════════════════════════════════════════════════
+   NEXUS ASIA DISTRESS RADAR — Dashboard Styles
+   Aesthetic: Dark Terminal / Bloomberg Terminal meets
+   Brutalist Finance — monochrome with blood-red signals
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  --bg: #0a0a0b;
+  --bg-2: #111114;
+  --bg-3: #18181d;
+  --bg-4: #1f1f26;
+  --border: #2a2a35;
+  --border-2: #363645;
+  --text-primary: #e8e8f0;
+  --text-secondary: #888899;
+  --text-muted: #555566;
+  --accent-red: #e8253a;
+  --accent-red-dim: rgba(232, 37, 58, 0.15);
+  --accent-amber: #f5a623;
+  --accent-amber-dim: rgba(245, 166, 35, 0.15);
+  --accent-green: #00c896;
+  --accent-green-dim: rgba(0, 200, 150, 0.12);
+  --accent-blue: #4d8fff;
+  --accent-blue-dim: rgba(77, 143, 255, 0.12);
+  --mono: 'Space Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --glow-red: 0 0 20px rgba(232, 37, 58, 0.3);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--sans);
+  font-size: 14px;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── SCANLINE OVERLAY ─────────────────────────── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── TOP TICKER BAR ───────────────────────────── */
+.ticker-bar {
+  background: var(--accent-red);
+  height: 28px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  position: relative;
+}
+
+.ticker-label {
+  background: #000;
+  color: var(--accent-red);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  padding: 0 14px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  z-index: 2;
+  border-right: 1px solid rgba(255,255,255,0.2);
+}
+
+.ticker-track {
+  display: flex;
+  animation: ticker 40s linear infinite;
+  white-space: nowrap;
+}
+
+.ticker-item {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #fff;
+  letter-spacing: 0.08em;
+  padding: 0 30px;
+  opacity: 0.9;
+}
+
+.ticker-item span {
+  opacity: 0.5;
+  margin-right: 12px;
+}
+
+@keyframes ticker {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* ── HEADER ───────────────────────────────────── */
+header {
+  padding: 20px 32px 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 18px;
+  position: relative;
+}
+
+.logo-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.logo-top {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.3em;
+  color: var(--accent-red);
+  text-transform: uppercase;
+}
+
+.logo-main {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+  line-height: 1.1;
+}
+
+.logo-main em {
+  color: var(--accent-red);
+  font-style: normal;
+}
+
+.logo-sub {
+  font-family: var(--sans);
+  font-size: 11px;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent-green);
+  letter-spacing: 0.15em;
+}
+
+.pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+.last-updated {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+/* ── STAT CARDS ───────────────────────────────── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  margin: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--border);
+}
+
+.stat-card {
+  background: var(--bg-2);
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  overflow: hidden;
+  cursor: default;
+  transition: background 0.2s;
+}
+
+.stat-card:hover { background: var(--bg-3); }
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+
+.stat-card.red::before { background: var(--accent-red); }
+.stat-card.amber::before { background: var(--accent-amber); }
+.stat-card.blue::before { background: var(--accent-blue); }
+.stat-card.green::before { background: var(--accent-green); }
+
+.stat-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.stat-value {
+  font-family: var(--mono);
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+
+.stat-card.red .stat-value { color: var(--accent-red); }
+.stat-card.amber .stat-value { color: var(--accent-amber); }
+
+.stat-change {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.stat-change.up { color: var(--accent-red); }
+.stat-change.neutral { color: var(--text-muted); }
+
+/* ── MAIN LAYOUT ──────────────────────────────── */
+.main-layout {
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  gap: 0;
+  min-height: calc(100vh - 200px);
+}
+
+/* ── SECTION HEADERS ──────────────────────────── */
+.section-header {
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-2);
+}
+
+.section-title {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section-title::before {
+  content: '▸';
+  color: var(--accent-red);
+}
+
+/* ── FILTER BAR ───────────────────────────────── */
+.filter-bar {
+  padding: 12px 24px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  gap: 4px;
+}
+
+.filter-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 5px 12px;
+  background: transparent;
+  border: 1px solid var(--border-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+
+.filter-btn:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.filter-btn.active {
+  background: var(--accent-red);
+  border-color: var(--accent-red);
+  color: #fff;
+}
+
+.filter-btn.severity-critical { border-color: var(--accent-red); }
+.filter-btn.severity-critical.active { background: var(--accent-red); }
+.filter-btn.severity-high { border-color: var(--accent-amber); }
+.filter-btn.severity-high.active { background: var(--accent-amber); border-color: var(--accent-amber); }
+.filter-btn.severity-medium.active { background: var(--accent-blue); border-color: var(--accent-blue); }
+
+.search-input {
+  margin-left: auto;
+  background: var(--bg-3);
+  border: 1px solid var(--border-2);
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 6px 14px;
+  width: 220px;
+  outline: none;
+  letter-spacing: 0.05em;
+  transition: border-color 0.15s;
+}
+
+.search-input::placeholder { color: var(--text-muted); }
+.search-input:focus { border-color: var(--accent-red); }
+
+/* ── DATE FILTER BAR ──────────────────────────── */
+.date-bar {
+  padding: 8px 24px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.date-presets {
+  display: flex;
+  gap: 3px;
+}
+
+.date-btn {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--border-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+.date-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+.date-btn.active {
+  background: var(--bg-4);
+  border-color: var(--accent-amber);
+  color: var(--accent-amber);
+}
+
+.date-divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+.date-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+.date-input {
+  background: var(--bg-3);
+  border: 1px solid var(--border-2);
+  color: var(--text-primary);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 4px 8px;
+  outline: none;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  color-scheme: dark;
+  transition: border-color 0.15s;
+}
+.date-input:focus { border-color: var(--accent-amber); }
+.date-input::-webkit-calendar-picker-indicator {
+  filter: invert(0.6);
+  cursor: pointer;
+}
+
+.date-count {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+}
+
+/* ── EVENTS TABLE ─────────────────────────────── */
+.table-container {
+  overflow-x: auto;
+  background: var(--bg);
+}
+
+.events-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.events-table thead tr {
+  background: var(--bg-3);
+  border-bottom: 1px solid var(--border-2);
+}
+
+.events-table th {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  padding: 10px 16px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
+}
+
+.events-table th:hover { color: var(--text-primary); }
+.events-table th.sorted { color: var(--accent-red); }
+
+.events-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.12s;
+  animation: rowIn 0.3s ease forwards;
+  opacity: 0;
+}
+
+@keyframes rowIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.events-table tbody tr:hover {
+  background: var(--bg-3);
+}
+
+.events-table tbody tr:hover .company-cell {
+  color: #fff;
+}
+
+.events-table td {
+  padding: 11px 16px;
+  vertical-align: middle;
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.company-cell {
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: color 0.15s;
+}
+
+.keyword-badge {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 2px;
+}
+
+.badge-insolvency, .badge-cirp, .badge-bankruptcy {
+  background: var(--accent-red-dim);
+  color: var(--accent-red);
+  border: 1px solid rgba(232,37,58,0.25);
+}
+
+.badge-auction, .badge-asset_auction, .badge-sarfaesi {
+  background: var(--accent-amber-dim);
+  color: var(--accent-amber);
+  border: 1px solid rgba(245,166,35,0.25);
+}
+
+.badge-default, .badge-distressed_asset {
+  background: rgba(255,100,50,0.1);
+  color: #ff7733;
+  border: 1px solid rgba(255,100,50,0.2);
+}
+
+.badge-restructuring, .badge-debt_resolution, .badge-creditor_action {
+  background: var(--accent-blue-dim);
+  color: var(--accent-blue);
+  border: 1px solid rgba(77,143,255,0.2);
+}
+
+.badge-nclt, .badge-ibbi, .badge-liquidation {
+  background: rgba(232,37,58,0.2);
+  color: #ff4d5e;
+  border: 1px solid rgba(232,37,58,0.35);
+}
+
+/* default badge */
+.keyword-badge:not([class*="badge-"]) {
+  background: var(--bg-4);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-2);
+}
+
+.source-cell {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+}
+
+.url-cell a {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent-blue);
+  text-decoration: none;
+  letter-spacing: 0.03em;
+  opacity: 0.8;
+  transition: opacity 0.15s;
+}
+
+.url-cell a:hover { opacity: 1; text-decoration: underline; }
+
+.time-cell {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* Severity indicator */
+.severity-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.sev-critical { background: var(--accent-red); box-shadow: 0 0 6px var(--accent-red); }
+.sev-high { background: var(--accent-amber); }
+.sev-medium { background: var(--accent-blue); }
+.sev-low { background: var(--text-muted); }
+
+/* ── EMPTY STATE ──────────────────────────────── */
+.empty-state {
+  padding: 60px 24px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.empty-state .empty-icon {
+  font-family: var(--mono);
+  font-size: 32px;
+  margin-bottom: 16px;
+  opacity: 0.3;
+}
+
+.empty-state p {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+/* ── LOADING STATE ────────────────────────────── */
+.loading-row td {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  animation: blink 1.2s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ── SIDEBAR ──────────────────────────────────── */
+.sidebar {
+  border-left: 1px solid var(--border);
+  background: var(--bg-2);
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-section {
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── SOURCE HEALTH ────────────────────────────── */
+.source-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+
+.source-item:last-child { border-bottom: none; }
+.source-item:hover { background: var(--bg-3); cursor: pointer; }
+.source-item.source-active {
+  background: var(--accent-red-dim);
+  border-left: 2px solid var(--accent-red);
+}
+.source-item.source-active .source-name { color: var(--text-primary); }
+.source-item.source-active .source-status { background: var(--accent-red); color: #fff; border-color: var(--accent-red); }
+
+.source-name {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.source-status {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  padding: 2px 7px;
+  border-radius: 2px;
+}
+
+.status-active {
+  background: var(--accent-green-dim);
+  color: var(--accent-green);
+  border: 1px solid rgba(0,200,150,0.2);
+}
+
+.status-crawling {
+  background: var(--accent-amber-dim);
+  color: var(--accent-amber);
+  border: 1px solid rgba(245,166,35,0.2);
+  animation: blink 1.5s infinite;
+}
+
+.status-error {
+  background: var(--accent-red-dim);
+  color: var(--accent-red);
+  border: 1px solid rgba(232,37,58,0.2);
+}
+
+/* ── SIGNAL BREAKDOWN CHART ───────────────────── */
+.breakdown-list {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.breakdown-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 3px;
+  transition: background 0.15s;
+}
+.breakdown-item:hover { background: var(--bg-4); }
+.breakdown-item.breakdown-active {
+  background: var(--accent-red-dim);
+  outline: 1px solid rgba(232,37,58,0.25);
+}
+
+.breakdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.breakdown-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.breakdown-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-secondary);
+}
+
+.breakdown-bar {
+  height: 3px;
+  background: var(--border-2);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.breakdown-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+
+/* ── FOOTER ───────────────────────────────────── */
+footer {
+  border-top: 1px solid var(--border);
+  padding: 12px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-2);
+}
+
+.footer-left {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.footer-right {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-muted);
+  letter-spacing: 0.1em;
+}
+
+/* ── PAGINATION ───────────────────────────────── */
+.pagination {
+  padding: 12px 24px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.page-info {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+}
+
+.page-btns {
+  display: flex;
+  gap: 4px;
+}
+
+.page-btn {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid var(--border-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.page-btn:hover:not(:disabled) {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.page-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* ── ERROR BANNER ─────────────────────────────── */
+.error-banner {
+  background: var(--accent-red-dim);
+  border: 1px solid rgba(232,37,58,0.3);
+  color: var(--accent-red);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 10px 24px;
+  letter-spacing: 0.05em;
+  display: none;
+}
+
+.error-banner.visible { display: block; }
+
+/* ── RESPONSIVE ───────────────────────────────── */
+@media (max-width: 1024px) {
+  .main-layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  header { flex-direction: column; gap: 12px; padding: 16px; }
+  .stats-row { grid-template-columns: 1fr 1fr; }
+  .filter-bar { padding: 10px 16px; }
+  .search-input { width: 100%; margin-left: 0; }
+}
+
+/* ── NAV TABS ─────────────────────────────────── */
+.nav-tabs {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 0;
+  padding: 0 24px;
+}
+.nav-tab {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  padding: 12px 20px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+.nav-tab:hover { color: var(--text-primary); }
+.nav-tab.active {
+  color: var(--accent-amber);
+  border-bottom-color: var(--accent-amber);
+}
+.nav-badge {
+  display: inline-block;
+  background: var(--bg-4);
+  color: var(--text-muted);
+  font-size: 9px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  margin-left: 6px;
+}
+.nav-tab.active .nav-badge { background: rgba(245,166,35,0.2); color: var(--accent-amber); }
+
+/* ── DEAL INTEL VIEW ──────────────────────────── */
+#dealIntelView { display: none; }
+#dealIntelView.active { display: block; }
+#signalView.active { display: block; }
+#signalView { display: none; }
+
+.deal-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.deal-card {
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 24px;
+  transition: background 0.15s;
+  cursor: pointer;
+}
+.deal-card:hover { background: var(--bg-3); }
+.deal-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.deal-company {
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.deal-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.deal-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  padding: 2px 8px;
+  border: 1px solid var(--border-2);
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.deal-tag.sector  { border-color: var(--accent-blue); color: var(--accent-blue); }
+.deal-tag.stage   { border-color: var(--accent-amber); color: var(--accent-amber); }
+.deal-tag.amount  { border-color: var(--accent-green); color: var(--accent-green); }
+.deal-tag.bench   { border-color: #9b59b6; color: #9b59b6; }
+
+.deal-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  margin-top: 12px;
+}
+.deal-section-title {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+}
+.deal-section-content {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.deal-section-content strong {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Buyer match list */
+.buyer-list { display: flex; flex-direction: column; gap: 6px; }
+.buyer-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  gap: 8px;
+}
+.buyer-name {
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.buyer-type-badge {
+  font-family: var(--mono);
+  font-size: 8px;
+  padding: 1px 5px;
+  letter-spacing: 0.1em;
+  background: var(--accent-red-dim);
+  color: var(--accent-red);
+  flex-shrink: 0;
+}
+.buyer-score {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent-green);
+  flex-shrink: 0;
+}
+.match-bar {
+  width: 50px;
+  height: 3px;
+  background: var(--bg-4);
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+.match-fill {
+  height: 100%;
+  background: var(--accent-green);
+  border-radius: 2px;
+}
+
+/* RP contact card */
+.rp-card {
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  border-radius: 2px;
+}
+.rp-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.rp-detail {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.rp-detail a { color: var(--accent-blue); text-decoration: none; }
+.rp-detail a:hover { text-decoration: underline; }
+
+/* Empty deal state */
+.deal-empty {
+  padding: 80px 24px;
+  text-align: center;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+}
+
+/* Buyers directory */
+.buyers-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1px;
+  background: var(--border);
+}
+.buyer-dir-card {
+  background: var(--bg-2);
+  padding: 20px;
+  transition: background 0.15s;
+}
+.buyer-dir-card:hover { background: var(--bg-3); }
+.buyer-dir-name { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px; }
+.buyer-dir-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px; }
+.buyer-dir-row {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 3px;
+  display: flex;
+  gap: 6px;
+}
+.buyer-dir-row span { color: var(--text-secondary); }
+
+/* ═══════════════════════════════════════════════
+   DOSSIER MODAL
+   ═══════════════════════════════════════════════ */
+.dossier-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: flex-start; justify-content: flex-end;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.dossier-overlay.open {
+  opacity: 1; pointer-events: all;
+}
+.dossier-panel {
+  width: min(780px, 100vw);
+  height: 100vh;
+  background: var(--bg-2);
+  border-left: 1px solid var(--border-2);
+  overflow-y: auto;
+  transform: translateX(40px);
+  transition: transform 0.25s cubic-bezier(.4,0,.2,1);
+  display: flex; flex-direction: column;
+}
+.dossier-overlay.open .dossier-panel {
+  transform: translateX(0);
+}
+.dossier-header {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.dossier-label {
+  font-family: var(--mono);
+  font-size: 9px; letter-spacing: 0.2em;
+  color: var(--accent-red); text-transform: uppercase;
+}
+.dossier-close {
+  background: var(--bg-3); border: 1px solid var(--border);
+  color: var(--text-secondary); cursor: pointer;
+  font-family: var(--mono); font-size: 11px;
+  padding: 6px 12px; letter-spacing: 0.1em;
+  transition: all 0.15s;
+}
+.dossier-close:hover { background: var(--accent-red); color: #fff; border-color: var(--accent-red); }
+.dossier-body { padding: 24px; flex: 1; }
+.dossier-company {
+  font-family: var(--mono); font-size: 22px; font-weight: 700;
+  color: var(--text-primary); letter-spacing: 0.05em;
+  margin-bottom: 6px; line-height: 1.2;
+}
+.dossier-headline {
+  font-size: 13px; color: var(--text-secondary);
+  margin-bottom: 20px; line-height: 1.5;
+  border-left: 3px solid var(--accent-red);
+  padding-left: 12px;
+}
+.dossier-badges { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px; }
+.dossier-badge {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.15em;
+  padding: 4px 10px; border: 1px solid var(--border-2);
+  text-transform: uppercase;
+}
+.dossier-badge.sev-critical { border-color: var(--accent-red); color: var(--accent-red); background: var(--accent-red-dim); }
+.dossier-badge.sev-high { border-color: var(--accent-amber); color: var(--accent-amber); background: var(--accent-amber-dim); }
+.dossier-badge.sev-medium { border-color: var(--accent-blue); color: var(--accent-blue); background: var(--accent-blue-dim); }
+.dossier-badge.source { border-color: var(--border-2); color: var(--text-secondary); }
+.dossier-section {
+  margin-bottom: 24px;
+  border: 1px solid var(--border);
+  background: var(--bg-3);
+}
+.dossier-section-title {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.2em;
+  color: var(--accent-amber); text-transform: uppercase;
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  background: var(--bg-4);
+}
+.dossier-section-body { padding: 16px; }
+.dossier-row {
+  display: grid; grid-template-columns: 140px 1fr;
+  gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border);
+}
+.dossier-row:last-child { border-bottom: none; }
+.dossier-row-label {
+  font-family: var(--mono); font-size: 9px; letter-spacing: 0.12em;
+  color: var(--text-muted); text-transform: uppercase;
+  padding-top: 2px;
+}
+.dossier-row-val { font-size: 12px; color: var(--text-primary); word-break: break-word; }
+.dossier-snippet {
+  font-size: 12px; color: var(--text-secondary); line-height: 1.7;
+  padding: 12px 16px;
+}
+.dossier-actions { display: flex; gap: 10px; margin-top: 8px; flex-wrap: wrap; }
+.dossier-btn {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.12em;
+  padding: 8px 16px; border: 1px solid var(--border-2);
+  background: var(--bg-4); color: var(--text-secondary);
+  cursor: pointer; text-decoration: none; text-transform: uppercase;
+  transition: all 0.15s; display: inline-block;
+}
+.dossier-btn:hover { border-color: var(--accent-green); color: var(--accent-green); }
+.dossier-btn.primary { border-color: var(--accent-red); color: var(--accent-red); }
+.dossier-btn.primary:hover { background: var(--accent-red); color: #fff; }
+.dossier-other-signals { display: flex; flex-direction: column; gap: 6px; }
+.dossier-signal-item {
+  padding: 8px 12px;
+  background: var(--bg-4); border: 1px solid var(--border);
+  cursor: pointer; transition: border-color 0.15s;
+  font-size: 11px;
+}
+.dossier-signal-item:hover { border-color: var(--accent-red); }
+.dossier-signal-item .sig-kw {
+  font-family: var(--mono); font-size: 9px; color: var(--accent-amber);
+  letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 3px;
+}
+.dossier-profile-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.dossier-profile-card {
+  padding: 12px; background: var(--bg-4); border: 1px solid var(--border);
+  font-size: 11px; color: var(--text-secondary); line-height: 1.6;
+}
+.dossier-profile-card strong {
+  display: block; font-family: var(--mono); font-size: 9px;
+  color: var(--accent-green); letter-spacing: 0.12em;
+  text-transform: uppercase; margin-bottom: 4px;
+}
+.dossier-empty {
+  font-family: var(--mono); font-size: 10px; color: var(--text-muted);
+  letter-spacing: 0.1em; padding: 12px; text-align: center;
+}
+.dossier-loading {
+  font-family: var(--mono); font-size: 10px; color: var(--text-muted);
+  letter-spacing: 0.15em; padding: 24px; text-align: center;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+</style>
+</head>
+<body>
+
+<!-- ── TICKER ──────────────────────────────────── -->
+<div class="ticker-bar">
+  <div class="ticker-label">⚠ NEXUS LIVE</div>
+  <div class="ticker-track" id="ticker">
+    <span class="ticker-item"><span>◆</span> CIRP INITIATED — Loading signals...</span>
+    <span class="ticker-item"><span>◆</span> AUCTION NOTICE — Connecting to database...</span>
+    <span class="ticker-item"><span>◆</span> DISTRESS RADAR — Active monitoring</span>
+    <span class="ticker-item"><span>◆</span> NEXUS ASIA — Deal Intelligence Platform</span>
+    <!-- Duplicated for seamless loop -->
+    <span class="ticker-item"><span>◆</span> CIRP INITIATED — Loading signals...</span>
+    <span class="ticker-item"><span>◆</span> AUCTION NOTICE — Connecting to database...</span>
+    <span class="ticker-item"><span>◆</span> DISTRESS RADAR — Active monitoring</span>
+    <span class="ticker-item"><span>◆</span> NEXUS ASIA — Deal Intelligence Platform</span>
+  </div>
+</div>
+
+<!-- ── HEADER ──────────────────────────────────── -->
+<header>
+  <div class="logo-block">
+    <div class="logo-top">Deal Intelligence</div>
+    <div class="logo-main">NEXUS <em>ASIA</em></div>
+    <div class="logo-sub">Distress Radar · India & Global Markets</div>
+  </div>
+  <div class="header-right">
+    <div class="live-indicator">
+      <div class="pulse-dot"></div>
+      LIVE MONITORING
+    </div>
+    <div class="last-updated" id="lastUpdated">— LOADING —</div>
+  </div>
+</header>
+
+<!-- ── STATS ROW ───────────────────────────────── -->
+<div class="stats-row">
+  <div class="stat-card red">
+    <div class="stat-label">Total Signals</div>
+    <div class="stat-value" id="statTotal">—</div>
+    <div class="stat-change neutral" id="statTotalSub">All time</div>
+  </div>
+  <div class="stat-card amber">
+    <div class="stat-label">Last 24h</div>
+    <div class="stat-value" id="stat24h">—</div>
+    <div class="stat-change up" id="stat24hSub">↑ Active signals</div>
+  </div>
+  <div class="stat-card blue">
+    <div class="stat-label">Companies Tracked</div>
+    <div class="stat-value" id="statCompanies">—</div>
+    <div class="stat-change neutral">Under watch</div>
+  </div>
+  <div class="stat-card green">
+    <div class="stat-label">Auctions Detected</div>
+    <div class="stat-value" id="statAuctions">—</div>
+    <div class="stat-change neutral">SARFAESI + NCLT</div>
+  </div>
+</div>
+
+<!-- ── NAV TABS ──────────────────────────────────── -->
+<nav class="nav-tabs">
+  <button class="nav-tab active" onclick="switchTab('signals', this)">
+    ◈ DISTRESS SIGNALS <span class="nav-badge" id="navBadgeSignals">0</span>
+  </button>
+  <button class="nav-tab" onclick="switchTab('deals', this)">
+    ◉ DEAL INTELLIGENCE <span class="nav-badge" id="navBadgeDeals">0</span>
+  </button>
+  <button class="nav-tab" onclick="switchTab('buyers', this)">
+    ◎ BUYER UNIVERSE <span class="nav-badge" id="navBadgeBuyers">0</span>
+  </button>
+  <button class="nav-tab" onclick="switchTab('pipeline', this)">
+    ⬡ DEAL PIPELINE <span class="nav-badge" id="navBadgePipeline">0</span>
+  </button>
+  <button class="nav-tab" onclick="switchTab('hotdeals', this)">
+    🔥 HOT DEALS <span class="nav-badge" id="navBadgeHot">0</span>
+  </button>
+  <button class="nav-tab" onclick="switchTab('caprate', this)">
+    ◈ CAP RATE MAP <span class="nav-badge" id="navBadgeCapRate">0</span>
+  </button>
+</nav>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- TAB 1: SIGNAL VIEW (existing content)          -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="signalView" class="active">
+
+<!-- ── MAIN LAYOUT ─────────────────────────────── -->
+<div class="main-layout">
+
+  <!-- LEFT: EVENTS TABLE -->
+  <div>
+    <div class="section-header">
+      <div class="section-title" id="feedTitle">DISTRESS SIGNAL FEED</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="activeFilterTag" style="display:none;font-family:var(--mono);font-size:9px;
+          background:var(--accent-red);color:#fff;padding:2px 8px;border-radius:2px;
+          cursor:pointer;letter-spacing:0.1em;" onclick="clearAllFilters()">
+          ✕ CLEAR
+        </span>
+        <div style="font-family: var(--mono); font-size: 10px; color: var(--text-muted);" id="tableCount">—</div>
+      </div>
+    </div>
+
+    <!-- FILTER BAR -->
+    <div class="filter-bar">
+      <div class="filter-group">
+        <button class="filter-btn active" onclick="setFilter('all', this)">ALL</button>
+        <button class="filter-btn" onclick="setFilter('insolvency', this)">INSOLVENCY</button>
+        <button class="filter-btn" onclick="setFilter('auction', this)">AUCTIONS</button>
+        <button class="filter-btn" onclick="setFilter('default', this)">DEFAULTS</button>
+        <button class="filter-btn" onclick="setFilter('restructuring', this)">RESTRUCTURING</button>
+      </div>
+      <div class="filter-group" style="margin-left: 12px;">
+        <button class="filter-btn severity-critical" onclick="setSeverity('critical', this)">CRITICAL</button>
+        <button class="filter-btn severity-high" onclick="setSeverity('high', this)">HIGH</button>
+        <button class="filter-btn severity-medium" onclick="setSeverity('medium', this)">MEDIUM</button>
+      </div>
+      <input
+        type="text"
+        class="search-input"
+        placeholder="SEARCH COMPANY / KEYWORD..."
+        id="searchInput"
+        oninput="applySearch()"
+      />
+    </div>
+
+    <!-- DATE FILTER BAR -->
+    <div class="date-bar">
+      <span class="date-label">DATE RANGE</span>
+      <div class="date-presets">
+        <button class="date-btn active" onclick="setDatePreset('today', this)">TODAY</button>
+        <button class="date-btn" onclick="setDatePreset('3d', this)">3D</button>
+        <button class="date-btn" onclick="setDatePreset('7d', this)">7D</button>
+        <button class="date-btn" onclick="setDatePreset('30d', this)">30D</button>
+        <button class="date-btn" onclick="setDatePreset('all', this)">ALL TIME</button>
+      </div>
+      <div class="date-divider"></div>
+      <span class="date-label">FROM</span>
+      <input type="date" class="date-input" id="dateFrom" onchange="setDateCustom()" />
+      <span class="date-label">TO</span>
+      <input type="date" class="date-input" id="dateTo" onchange="setDateCustom()" />
+      <span class="date-count" id="dateCount"></span>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-container">
+      <table class="events-table">
+        <thead>
+          <tr>
+            <th onclick="sortTable('severity')">SEV</th>
+            <th onclick="sortTable('company_name')" class="sorted">COMPANY</th>
+            <th onclick="sortTable('signal_keyword')">SIGNAL</th>
+            <th onclick="sortTable('source')">SOURCE</th>
+            <th>URL</th>
+            <th onclick="sortTable('order_date')" title="Actual court/listing/order date">ORDER DATE</th>
+            <th onclick="sortTable('detected_at')" title="When our crawler found it">FOUND</th>
+          </tr>
+        </thead>
+        <tbody id="eventsBody">
+          <tr class="loading-row">
+            <td colspan="7">CONNECTING TO NEXUS DATABASE...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- PAGINATION -->
+    <div class="pagination">
+      <div class="page-info" id="pageInfo">— / —</div>
+      <div class="page-btns">
+        <button class="page-btn" id="btnPrev" onclick="changePage(-1)" disabled>◀ PREV</button>
+        <button class="page-btn" id="btnNext" onclick="changePage(1)" disabled>NEXT ▶</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- SOURCE HEALTH -->
+    <div class="sidebar-section">
+      <div class="section-header">
+        <div class="section-title">SOURCE HEALTH</div>
+      </div>
+      <div id="sourceHealth">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <!-- SIGNAL BREAKDOWN -->
+    <div class="sidebar-section">
+      <div class="section-header">
+        <div class="section-title">SIGNAL BREAKDOWN</div>
+      </div>
+      <div class="breakdown-list" id="breakdownList">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+    <!-- RECENT CRITICAL -->
+    <div class="sidebar-section">
+      <div class="section-header">
+        <div class="section-title">CRITICAL SIGNALS</div>
+      </div>
+      <div id="criticalList" style="padding: 8px 0;">
+        <!-- populated by JS -->
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- end #signalView -->
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- TAB 2: DEAL INTELLIGENCE VIEW                  -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="dealIntelView">
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 24px; background:var(--bg-2); border-bottom:1px solid var(--border);">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.15em;color:var(--text-muted);">
+      ◉ DEAL INTELLIGENCE — ASSET PROFILES WITH MATCHED BUYERS &amp; RP CONTACTS
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <input type="text" id="dealSearch" placeholder="SEARCH COMPANY, SECTOR..." 
+        style="background:var(--bg-3);border:1px solid var(--border-2);color:var(--text-primary);
+               font-family:var(--mono);font-size:10px;padding:5px 12px;outline:none;width:240px;"
+        oninput="renderDeals()"/>
+      <select id="dealSectorFilter" onchange="renderDeals()"
+        style="background:var(--bg-3);border:1px solid var(--border-2);color:var(--text-muted);
+               font-family:var(--mono);font-size:10px;padding:5px 10px;outline:none;">
+        <option value="">ALL SECTORS</option>
+        <option value="steel">STEEL</option>
+        <option value="real_estate">REAL ESTATE</option>
+        <option value="nbfc_finance">NBFC / FINANCE</option>
+        <option value="manufacturing">MANUFACTURING</option>
+        <option value="energy">ENERGY / POWER</option>
+        <option value="textiles">TEXTILES</option>
+        <option value="hospitality">HOSPITALITY</option>
+        <option value="aviation">AVIATION</option>
+        <option value="agro">AGRO / FOODS</option>
+        <option value="other">OTHER</option>
+      </select>
+      <select id="dealStageFilter" onchange="renderDeals()"
+        style="background:var(--bg-3);border:1px solid var(--border-2);color:var(--text-muted);
+               font-family:var(--mono);font-size:10px;padding:5px 10px;outline:none;">
+        <option value="">ALL STAGES</option>
+        <option value="cirp">CIRP</option>
+        <option value="liquidation">LIQUIDATION</option>
+        <option value="sarfaesi">SARFAESI</option>
+        <option value="pre_nclt">PRE-NCLT</option>
+      </select>
+    </div>
+  </div>
+  <div id="dealGrid" class="deal-grid">
+    <div class="deal-empty">LOADING DEAL INTELLIGENCE...</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════ -->
+<!-- TAB 3: BUYER UNIVERSE                          -->
+<!-- ══════════════════════════════════════════════ -->
+<div id="buyersView" style="display:none;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:var(--bg-2);border-bottom:1px solid var(--border);">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.15em;color:var(--text-muted);">
+      ◎ BUYER UNIVERSE — FUNDS, ARCs, FAMILY OFFICES, STRATEGIC ACQUIRERS
+    </div>
+    <div style="display:flex;gap:8px;">
+      <select id="buyerTypeFilter" onchange="renderBuyers()"
+        style="background:var(--bg-3);border:1px solid var(--border-2);color:var(--text-muted);
+               font-family:var(--mono);font-size:10px;padding:5px 10px;outline:none;">
+        <option value="">ALL TYPES</option>
+        <option value="ARC">ARC</option>
+        <option value="PE_FUND">PE FUND</option>
+        <option value="FAMILY_OFFICE">FAMILY OFFICE</option>
+        <option value="STRATEGIC">STRATEGIC</option>
+        <option value="NBFC">NBFC</option>
+      </select>
+      <select id="buyerSectorFilter" onchange="renderBuyers()"
+        style="background:var(--bg-3);border:1px solid var(--border-2);color:var(--text-muted);
+               font-family:var(--mono);font-size:10px;padding:5px 10px;outline:none;">
+        <option value="">ALL SECTORS</option>
+        <option value="steel">STEEL</option>
+        <option value="real_estate">REAL ESTATE</option>
+        <option value="nbfc_finance">NBFC / FINANCE</option>
+        <option value="manufacturing">MANUFACTURING</option>
+        <option value="energy">ENERGY</option>
+      </select>
+    </div>
+  </div>
+  <div id="buyersGrid" class="buyers-grid">
+    <div class="deal-empty">LOADING BUYERS...</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- TAB 4: DEAL PIPELINE                            -->
+<!-- ═══════════════════════════════════════════════ -->
+<div id="pipelineView" style="display:none;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:var(--bg-2);border-bottom:1px solid var(--border);">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.15em;color:var(--text-muted);">
+      ⬡ ACTIVE DEAL PIPELINE — LOTUS · KURLA · MALAD &amp; INCOMING SOURCED DEALS
+    </div>
+    <div style="display:flex;gap:8px;">
+      <select id="pipelineStageFilter" onchange="renderPipeline()"
+        style="background:var(--bg-3);border:1px solid var(--border-2);color:var(--text-muted);font-family:var(--mono);font-size:10px;padding:5px 10px;outline:none;">
+        <option value="">ALL STAGES</option>
+        <option value="identified">IDENTIFIED</option>
+        <option value="approached">APPROACHED</option>
+        <option value="term_sheet">TERM SHEET</option>
+        <option value="loi_signed">LOI SIGNED</option>
+        <option value="due_diligence">DUE DILIGENCE</option>
+        <option value="negotiation">NEGOTIATION</option>
+        <option value="documentation">DOCUMENTATION</option>
+      </select>
+      <select id="pipelinePriorityFilter" onchange="renderPipeline()"
+        style="background:var(--bg-3);border:1px solid var(--border-2);color:var(--text-muted);font-family:var(--mono);font-size:10px;padding:5px 10px;outline:none;">
+        <option value="">ALL PRIORITIES</option>
+        <option value="urgent">URGENT</option>
+        <option value="high">HIGH</option>
+        <option value="normal">NORMAL</option>
+      </select>
+    </div>
+  </div>
+  <div id="pipelineContent" style="padding:24px;">
+    <div class="deal-empty">LOADING PIPELINE...</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- TAB 5: HOT DEALS (MMR Commercial, Score ≥60)   -->
+<!-- ═══════════════════════════════════════════════ -->
+<div id="hotdealsView" style="display:none;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 24px;background:var(--bg-2);border-bottom:1px solid var(--border);">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.15em;color:var(--text-muted);">
+      🔥 HOT DEALS — MMR COMMERCIAL · SCORED &amp; RANKED · BANK AUCTIONS · ARC · DRT
+    </div>
+    <div style="display:flex;gap:8px;">
+      <select id="hotChannelFilter" onchange="renderHotDeals()"
+        style="background:var(--bg-3);border:1px solid var(--border-2);color:var(--text-muted);font-family:var(--mono);font-size:10px;padding:5px 10px;outline:none;">
+        <option value="">ALL CHANNELS</option>
+        <option value="bank_auction">BANK AUCTION</option>
+        <option value="sarfaesi">SARFAESI</option>
+        <option value="drt">DRT PRE-AUCTION</option>
+        <option value="arc_portfolio">ARC PORTFOLIO</option>
+        <option value="pre_leased_cre">PRE-LEASED CRE</option>
+        <option value="legal_intelligence">LEGAL INTEL</option>
+        <option value="pe_activity">PE ACTIVITY</option>
+        <option value="market_distress">MARKET DISTRESS</option>
+      </select>
+      <select id="hotAssetFilter" onchange="renderHotDeals()"
+        style="background:var(--bg-3);border:1px solid var(--border-2);color:var(--text-muted);font-family:var(--mono);font-size:10px;padding:5px 10px;outline:none;">
+        <option value="">ALL ASSET CLASSES</option>
+        <option value="commercial">COMMERCIAL</option>
+        <option value="industrial">INDUSTRIAL</option>
+        <option value="hospitality">HOSPITALITY</option>
+        <option value="land">LAND</option>
+      </select>
+    </div>
+  </div>
+  <div id="hotdealsContent" style="padding:24px;">
+    <div class="deal-empty">LOADING HOT DEALS...</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════ -->
+<!-- TAB 6: CAP RATE MARKET MAP                     -->
+<!-- ═══════════════════════════════════════════════ -->
+<div id="caprateView" style="display:none;">
+  <div style="padding:14px 24px;background:var(--bg-2);border-bottom:1px solid var(--border);">
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.15em;color:var(--text-muted);">
+      ◈ MUMBAI CAP RATE MAP — MICRO-MARKET BENCHMARKS · INVESTOR THRESHOLD 8.5%+
+    </div>
+  </div>
+  <div id="caprateContent" style="padding:24px;">
+    <div class="deal-empty">LOADING CAP RATE DATA...</div>
+  </div>
+</div>
+
+<!-- ── FOOTER ──────────────────────────────────── -->
+<footer>
+  <div class="footer-left">
+    NEXUS ASIA DISTRESS RADAR · Automated Signal Intelligence
+    · Auto-refreshes every 5 minutes
+  </div>
+  <div class="footer-right" id="footerRunInfo">
+    Last crawl: —
+  </div>
+</footer>
+
+
+<script>
+// ═══════════════════════════════════════════════════
+// NEXUS ASIA — Dashboard JS
+// Reads from Supabase via REST API
+// ═══════════════════════════════════════════════════
+
+// ── CONFIG ─────────────────────────────────────
+// These are injected via environment or set directly
+// for a static dashboard. Replace with your values.
+const SUPABASE_URL = window.SUPABASE_URL || "https://edaxvdpaceafjmowselu.supabase.co";
+const SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVkYXh2ZHBhY2VhZmptb3dzZWx1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMzg2MzcsImV4cCI6MjA4ODgxNDYzN30.DRlNq9Dy2LIHvCoF1SD7MAjD7sVO3FUI_oXxcZc9jdo";
+
+const PAGE_SIZE = 30;
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+
+// ── STATE ──────────────────────────────────────
+let allEvents = [];
+let filteredEvents = [];
+let currentPage = 1;
+let currentFilter = "all";
+let currentSeverity = null;
+let currentSearch = "";
+let currentSource = null;
+let dateFrom = null;   // Date object or null
+let dateTo   = null;   // Date object or null
+let sortField = "detected_at";
+let sortAsc = false;
+
+// New tab state
+let pipelineLoaded = false;
+let hotDealsLoaded = false;
+let capRateLoaded  = false;
+let hotDealsData   = [];
+let pipelineData   = [];
+let capRateData    = [];
+
+// ── SUPABASE REST CLIENT ────────────────────────
+async function supabaseGet(table, params = {}) {
+  const url = new URL(`${SUPABASE_URL}/rest/v1/${table}`);
+  Object.entries(params).forEach(([k, v]) => url.searchParams.append(k, v));
+
+  const resp = await fetch(url.toString(), {
+    headers: {
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+      "Accept": "application/json",
+    }
+  });
+
+  if (!resp.ok) throw new Error(`Supabase ${resp.status}: ${await resp.text()}`);
+  return resp.json();
+}
+
+// ── INIT ────────────────────────────────────────
+async function init() {
+  // Default: ALL TIME — so existing signals without order_date still show
+  dateFrom = null;
+  dateTo   = null;
+  // Deactivate TODAY, activate ALL TIME button
+  document.querySelectorAll(".date-btn").forEach(b => b.classList.remove("active"));
+  const allBtn = [...document.querySelectorAll(".date-btn")].find(b => b.textContent.trim() === "ALL TIME");
+  if (allBtn) allBtn.classList.add("active");
+  await loadData();
+  setInterval(loadData, REFRESH_INTERVAL_MS);
+}
+
+// ── LOAD DATA ───────────────────────────────────
+async function loadData() {
+  showError(null);
+  try {
+    const events = await supabaseGet("distress_events", {
+      select: "id,company_name,signal_keyword,signal_category,source,url,headline,detected_at,order_date,severity",
+      order: "detected_at.desc",
+      limit: 1000,
+      "is_duplicate": "eq.false",
+    });
+
+    allEvents = events;
+    document.getElementById("navBadgeSignals").textContent = events.length;
+    updateStats(events);
+    updateTicker(events);
+    applyFilters();
+    renderSidebar(events);
+    updateLastRefreshed();
+
+    await loadLastCrawlInfo();
+
+  } catch (err) {
+    console.error("Data load error:", err);
+    showError(`Connection error: ${err.message}. Check SUPABASE_URL and SUPABASE_ANON_KEY.`);
+    renderEmpty("DATABASE CONNECTION ERROR — CHECK CONFIG");
+  }
+}
+
+// ── STATS ────────────────────────────────────────
+function updateStats(events) {
+  document.getElementById("statTotal").textContent = events.length.toLocaleString();
+
+  const now = new Date();
+  const yesterday = new Date(now - 24 * 60 * 60 * 1000);
+  const last24h = events.filter(e => new Date(e.detected_at) > yesterday);
+  document.getElementById("stat24h").textContent = last24h.length.toLocaleString();
+  document.getElementById("stat24hSub").textContent =
+    last24h.length > 0 ? `↑ ${last24h.length} new signals` : "No new signals";
+
+  const companies = new Set(events.map(e => e.company_name)).size;
+  document.getElementById("statCompanies").textContent = companies.toLocaleString();
+
+  const auctions = events.filter(e =>
+    ["asset_auction", "auction", "sarfaesi"].includes(e.signal_category) ||
+    ["auction", "asset auction", "sarfaesi"].includes(e.signal_keyword?.toLowerCase())
+  ).length;
+  document.getElementById("statAuctions").textContent = auctions.toLocaleString();
+}
+
+// ── TICKER UPDATE ────────────────────────────────
+function updateTicker(events) {
+  if (events.length === 0) return;
+  const recent = events.slice(0, 10);
+  const tickerEl = document.getElementById("ticker");
+  const items = recent.map(e =>
+    `<span class="ticker-item"><span>◆</span> ${e.company_name} — ${e.signal_keyword?.toUpperCase()} via ${e.source}</span>`
+  );
+  const doubled = [...items, ...items].join("");
+  tickerEl.innerHTML = doubled;
+}
+
+// ── FILTERS ──────────────────────────────────────
+function _todayStart() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function _daysAgo(n) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function _todayEnd() {
+  const d = new Date();
+  d.setHours(23, 59, 59, 999);
+  return d;
+}
+
+function setDatePreset(preset, btn) {
+  document.querySelectorAll(".date-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+
+  const now = new Date();
+  if (preset === "today") {
+    dateFrom = _todayStart();
+    dateTo   = _todayEnd();
+  } else if (preset === "3d") {
+    dateFrom = _daysAgo(3);
+    dateTo   = null;
+  } else if (preset === "7d") {
+    dateFrom = _daysAgo(7);
+    dateTo   = null;
+  } else if (preset === "30d") {
+    dateFrom = _daysAgo(30);
+    dateTo   = null;
+  } else {
+    dateFrom = null;
+    dateTo   = null;
+  }
+
+  // Sync the custom date inputs
+  const fmt = d => d ? d.toISOString().slice(0, 10) : "";
+  document.getElementById("dateFrom").value = fmt(dateFrom);
+  document.getElementById("dateTo").value   = fmt(dateTo);
+
+  currentPage = 1;
+  _updateFilterTag();
+  applyFilters();
+}
+
+function setDateCustom() {
+  const fromVal = document.getElementById("dateFrom").value;
+  const toVal   = document.getElementById("dateTo").value;
+  dateFrom = fromVal ? new Date(fromVal + "T00:00:00") : null;
+  dateTo   = toVal   ? new Date(toVal   + "T23:59:59") : null;
+
+  // Clear preset active
+  document.querySelectorAll(".date-btn").forEach(b => b.classList.remove("active"));
+
+  currentPage = 1;
+  _updateFilterTag();
+  applyFilters();
+}
+
+function clearAllFilters() {
+  currentSource   = null;
+  currentFilter   = "all";
+  currentSeverity = null;
+  currentPage     = 1;
+  dateFrom        = _todayStart();
+  dateTo          = _todayEnd();
+
+  document.querySelectorAll(".source-item").forEach(el => el.classList.remove("source-active"));
+  document.querySelectorAll(".breakdown-item").forEach(el => el.classList.remove("breakdown-active"));
+  document.querySelectorAll(".filter-group:first-child .filter-btn").forEach(b => b.classList.remove("active"));
+  document.querySelector(".filter-group:first-child .filter-btn")?.classList.add("active");
+  document.querySelectorAll(".severity-critical,.severity-high,.severity-medium").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".date-btn").forEach(b => b.classList.remove("active"));
+  document.querySelector(".date-btn")?.classList.add("active"); // TODAY
+  document.getElementById("dateFrom").value = dateFrom.toISOString().slice(0,10);
+  document.getElementById("dateTo").value   = dateTo.toISOString().slice(0,10);
+  document.getElementById("feedTitle").textContent = "DISTRESS SIGNAL FEED";
+  document.getElementById("activeFilterTag").style.display = "none";
+  applyFilters();
+}
+
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  currentPage = 1;
+  // Clear breakdown active
+  document.querySelectorAll(".breakdown-item").forEach(el => el.classList.remove("breakdown-active"));
+  document.querySelectorAll(".filter-group:first-child .filter-btn")
+    .forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  _updateFilterTag();
+  applyFilters();
+}
+
+function _updateFilterTag() {
+  const tag = document.getElementById("activeFilterTag");
+  const title = document.getElementById("feedTitle");
+  const hasFilter = currentSource || currentFilter !== "all" || currentSeverity;
+  tag.style.display = hasFilter ? "inline" : "none";
+  const parts = [];
+  if (currentSource) parts.push(currentSource.toUpperCase());
+  if (currentFilter !== "all") parts.push(currentFilter.toUpperCase());
+  if (currentSeverity) parts.push(currentSeverity.toUpperCase());
+  title.textContent = parts.length
+    ? `DISTRESS SIGNAL FEED — ${parts.join(" · ")}`
+    : "DISTRESS SIGNAL FEED";
+}
+
+function setSeverity(severity, btn) {
+  if (currentSeverity === severity) {
+    currentSeverity = null;
+    btn.classList.remove("active");
+  } else {
+    currentSeverity = severity;
+    document.querySelectorAll(".severity-critical, .severity-high, .severity-medium")
+      .forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+  }
+  currentPage = 1;
+  _updateFilterTag();
+  applyFilters();
+}
+
+function applySearch() {
+  currentSearch = document.getElementById("searchInput").value.toLowerCase().trim();
+  currentPage = 1;
+  applyFilters();
+}
+
+function setSource(sourceName) {
+  if (currentSource === sourceName) {
+    currentSource = null;
+  } else {
+    currentSource = sourceName;
+  }
+  currentPage = 1;
+  document.querySelectorAll(".source-item").forEach(el => {
+    el.classList.toggle("source-active", el.dataset.source === currentSource);
+  });
+  _updateFilterTag();
+  applyFilters();
+}
+
+function setCategory(cat) {
+  if (currentFilter === cat) {
+    currentFilter = "all";
+    document.querySelectorAll(".breakdown-item").forEach(el => el.classList.remove("breakdown-active"));
+    document.querySelector(".filter-group:first-child .filter-btn")?.classList.add("active");
+  } else {
+    currentFilter = cat;
+    document.querySelectorAll(".breakdown-item").forEach(el => {
+      el.classList.toggle("breakdown-active", el.dataset.cat === cat);
+    });
+    document.querySelectorAll(".filter-group:first-child .filter-btn").forEach(b => b.classList.remove("active"));
+  }
+  currentPage = 1;
+  _updateFilterTag();
+  applyFilters();
+}
+
+function applyFilters() {
+  let events = [...allEvents];
+
+  // ── Date filter (uses order_date if available, always falls back to detected_at) ──
+  if (dateFrom || dateTo) {
+    events = events.filter(e => {
+      // For TODAY filter: use detected_at always (order_date may be null on old signals)
+      // For other filters: same
+      const raw = e.order_date || e.detected_at;
+      const t = new Date(raw);
+      if (dateFrom && t < dateFrom) return false;
+      if (dateTo   && t > dateTo)   return false;
+      return true;
+    });
+  }
+
+  // ── Source filter ────────────────────────────
+  if (currentSource) {
+    events = events.filter(e =>
+      (e.source || "").toLowerCase() === currentSource.toLowerCase()
+    );
+  }
+
+  // ── Category filter ──────────────────────────
+  if (currentFilter !== "all") {
+    events = events.filter(e => {
+      const cat = (e.signal_category || "").toLowerCase();
+      const kw  = (e.signal_keyword  || "").toLowerCase();
+      if (currentFilter === "insolvency")    return cat.includes("insolvency") || cat === "cirp" || kw.includes("insolvency") || kw === "cirp";
+      if (currentFilter === "auction")       return cat.includes("auction") || kw.includes("auction") || kw === "sarfaesi";
+      if (currentFilter === "default")       return cat === "default" || kw.includes("default") || kw.includes("npa");
+      if (currentFilter === "restructuring") return cat === "restructuring" || kw.includes("restructur");
+      return cat === currentFilter || cat.includes(currentFilter);
+    });
+  }
+
+  // ── Severity filter ──────────────────────────
+  if (currentSeverity) {
+    events = events.filter(e => e.severity === currentSeverity);
+  }
+
+  // ── Search filter ────────────────────────────
+  if (currentSearch) {
+    events = events.filter(e =>
+      (e.company_name   || "").toLowerCase().includes(currentSearch) ||
+      (e.signal_keyword || "").toLowerCase().includes(currentSearch) ||
+      (e.source         || "").toLowerCase().includes(currentSearch) ||
+      (e.headline       || "").toLowerCase().includes(currentSearch)
+    );
+  }
+
+  // Sort
+  events.sort((a, b) => {
+    let va = a[sortField] || "";
+    let vb = b[sortField] || "";
+    if (sortField === "detected_at" || sortField === "order_date") {
+      va = new Date(va); vb = new Date(vb);
+    } else {
+      va = va.toString().toLowerCase();
+      vb = vb.toString().toLowerCase();
+    }
+    return sortAsc ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1);
+  });
+
+  filteredEvents = events;
+  renderTable();
+}
+
+function sortTable(field) {
+  if (sortField === field) {
+    sortAsc = !sortAsc;
+  } else {
+    sortField = field;
+    sortAsc = false;
+  }
+  document.querySelectorAll(".events-table th").forEach(th => th.classList.remove("sorted"));
+  event.target.classList.add("sorted");
+  applyFilters();
+}
+
+// ── RENDER TABLE ─────────────────────────────────
+function renderTable() {
+  const body = document.getElementById("eventsBody");
+  const total = filteredEvents.length;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const end = Math.min(start + PAGE_SIZE, total);
+  const pageEvents = filteredEvents.slice(start, end);
+
+  // Update counts
+  document.getElementById("tableCount").textContent =
+    `${total.toLocaleString()} EVENTS`;
+  document.getElementById("pageInfo").textContent =
+    `${start + 1}–${end} of ${total.toLocaleString()}`;
+
+  // Update date range badge
+  const dcEl = document.getElementById("dateCount");
+  if (dcEl) {
+    if (dateFrom || dateTo) {
+      const fmtD = d => d ? d.toLocaleDateString("en-IN", {day:"2-digit",month:"short"}) : "—";
+      dcEl.textContent = `${fmtD(dateFrom)} → ${fmtD(dateTo || new Date())} · ${total} signals`;
+    } else {
+      dcEl.textContent = `${total} signals (all time)`;
+    }
+  }
+
+  // Pagination buttons
+  document.getElementById("btnPrev").disabled = currentPage <= 1;
+  document.getElementById("btnNext").disabled = currentPage >= totalPages;
+
+  if (pageEvents.length === 0) {
+    renderEmpty("NO SIGNALS MATCHING CURRENT FILTERS");
+    return;
+  }
+
+  body.innerHTML = pageEvents.map((e, i) => `
+    <tr onclick="openSignal('${escapeAttr(e.url || "#")}', '${escapeAttr(e.company_name)}', '${escapeAttr(String(e.id || ""))}')"
+        style="animation-delay: ${i * 20}ms"
+        title="${escapeAttr(e.headline || e.company_name)}">
+      <td>
+        <span class="severity-dot sev-${e.severity || 'medium'}"></span>
+      </td>
+      <td class="company-cell">${escape(e.company_name || "—")}</td>
+      <td>
+        <span class="keyword-badge badge-${(e.signal_category || e.signal_keyword || '').replace(/[\s_]+/g, '_').toLowerCase()}">
+          ${escape(e.signal_keyword || e.signal_category || "—")}
+        </span>
+      </td>
+      <td class="source-cell">${escape(e.source || "—")}</td>
+      <td class="url-cell">
+        ${e.url
+          ? `<a href="${escapeAttr(e.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">↗ VIEW</a>`
+          : "—"
+        }
+      </td>
+      <td class="time-cell" title="Court / listing / order date">
+        ${e.order_date
+          ? `<span style="color:var(--accent-amber);font-weight:600;">${formatOrderDate(e.order_date)}</span>`
+          : `<span style="color:var(--text-muted);font-size:9px;">—</span>`
+        }
+      </td>
+      <td class="time-cell" title="When our crawler found it" style="color:var(--text-muted);font-size:10px;">
+        ${formatTime(e.detected_at)}
+      </td>
+    </tr>
+  `).join("");
+}
+
+function renderEmpty(msg) {
+  document.getElementById("eventsBody").innerHTML = `
+    <tr>
+      <td colspan="7" style="text-align:center; padding: 60px; color: var(--text-muted); font-family: var(--mono); font-size: 11px; letter-spacing: 0.15em;">
+        ${msg}
+      </td>
+    </tr>
+  `;
+}
+
+// ── SIDEBAR ──────────────────────────────────────
+function renderSidebar(events) {
+  renderSourceHealth(events);
+  renderBreakdown(events);
+  renderCritical(events);
+}
+
+function renderSourceHealth(events) {
+  // Build counts from actual data — dynamic, not hardcoded
+  const sourceCounts = {};
+  events.forEach(e => {
+    const src = e.source || "Unknown";
+    sourceCounts[src] = (sourceCounts[src] || 0) + 1;
+  });
+
+  // Sort by count descending
+  const sorted = Object.entries(sourceCounts).sort((a, b) => b[1] - a[1]);
+
+  const html = sorted.map(([name, count]) => {
+    const isActive = currentSource === name;
+    return `
+      <div class="source-item ${isActive ? 'source-active' : ''}"
+           data-source="${escape(name)}"
+           onclick="setSource('${escapeAttr(name)}')"
+           title="Click to filter by ${escape(name)}">
+        <span class="source-name">${escape(name)}</span>
+        <span class="source-status status-active">${count}</span>
+      </div>
+    `;
+  }).join("");
+
+  document.getElementById("sourceHealth").innerHTML = html ||
+    `<div style="padding:12px 16px;color:var(--text-muted);font-family:var(--mono);font-size:10px;">NO SOURCES YET</div>`;
+}
+
+function renderBreakdown(events) {
+  const cats = {};
+  events.forEach(e => {
+    const cat = e.signal_category || "general";
+    cats[cat] = (cats[cat] || 0) + 1;
+  });
+
+  const sorted = Object.entries(cats).sort((a,b) => b[1]-a[1]).slice(0, 6);
+  const max = sorted[0]?.[1] || 1;
+
+  const colors = {
+    cirp: "var(--accent-red)",
+    insolvency: "var(--accent-red)",
+    liquidation: "#ff4d5e",
+    asset_auction: "var(--accent-amber)",
+    auction: "var(--accent-amber)",
+    default: "#ff7733",
+    restructuring: "var(--accent-blue)",
+    regulatory: "var(--accent-blue)",
+    general: "var(--text-muted)",
+  };
+
+  const html = sorted.map(([cat, count]) => `
+    <div class="breakdown-item ${currentFilter === cat ? 'breakdown-active' : ''}"
+         data-cat="${cat}"
+         onclick="setCategory('${cat}')"
+         style="cursor:pointer;"
+         title="Click to filter by ${cat.replace(/_/g,' ')}">
+      <div class="breakdown-header">
+        <span class="breakdown-label">${cat.replace(/_/g, " ")}</span>
+        <span class="breakdown-count">${count}</span>
+      </div>
+      <div class="breakdown-bar">
+        <div class="breakdown-fill" style="
+          width: ${(count/max*100).toFixed(1)}%;
+          background: ${colors[cat] || "var(--text-muted)"};
+        "></div>
+      </div>
+    </div>
+  `).join("");
+
+  document.getElementById("breakdownList").innerHTML = html || "<div style='padding:12px;color:var(--text-muted);font-family:var(--mono);font-size:10px;'>NO DATA</div>";
+}
+
+function renderCritical(events) {
+  const critical = events
+    .filter(e => e.severity === "critical" || e.severity === "high")
+    .slice(0, 5);
+
+  const html = critical.map(e => `
+    <div style="
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.1s;
+    " onclick="openSignal('${escapeAttr(e.url || "#")}', '${escapeAttr(e.company_name)}', '${escapeAttr(String(e.id || ""))}')"
+       onmouseover="this.style.background='var(--bg-3)'"
+       onmouseout="this.style.background='transparent'">
+      <div style="display:flex; align-items:center; gap:6px; margin-bottom:4px;">
+        <span class="severity-dot sev-${e.severity}"></span>
+        <span style="font-family:var(--sans);font-size:12px;color:var(--text-primary);font-weight:500;">
+          ${escape(e.company_name || "—")}
+        </span>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);letter-spacing:0.08em;">
+        ${escape(e.signal_keyword?.toUpperCase() || "—")} · ${escape(e.source || "—")}
+      </div>
+    </div>
+  `).join("");
+
+  document.getElementById("criticalList").innerHTML = html ||
+    `<div style="padding:12px 16px;color:var(--text-muted);font-family:var(--mono);font-size:10px;letter-spacing:0.1em;">NO CRITICAL SIGNALS</div>`;
+}
+
+// ── LAST CRAWL ─────────────────────────────────
+async function loadLastCrawlInfo() {
+  try {
+    const runs = await supabaseGet("crawler_runs", {
+      select: "completed_at,events_inserted,source_name",
+      order: "completed_at.desc",
+      limit: 1,
+      status: "eq.completed",
+    });
+    if (runs.length > 0) {
+      const run = runs[0];
+      document.getElementById("footerRunInfo").textContent =
+        `Last crawl: ${formatTime(run.completed_at)} · ${run.events_inserted} events stored`;
+    }
+  } catch (e) {
+    // Non-critical
+  }
+}
+
+// ── UTILITIES ─────────────────────────────────
+function changePage(dir) {
+  const totalPages = Math.ceil(filteredEvents.length / PAGE_SIZE);
+  currentPage = Math.max(1, Math.min(totalPages, currentPage + dir));
+  renderTable();
+  window.scrollTo(0, 0);
+}
+
+// ═══════════════════════════════════════════════
+// DOSSIER SYSTEM
+// ═══════════════════════════════════════════════
+
+let _dossierOpen = false;
+
+function openSignal(url, company, eventId) {
+  // Find full event object from allEvents
+  let ev = null;
+  if (eventId) {
+    ev = allEvents.find(e => e.id == eventId);
+  }
+  if (!ev && company) {
+    ev = allEvents.find(e => e.company_name === company && e.url === url)
+      || allEvents.find(e => e.company_name === company);
+  }
+  if (ev) {
+    openDossierSignal(ev);
+  } else if (url && url !== "#" && url.startsWith("http")) {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
+
+function openDossierSignal(ev) {
+  const overlay = document.getElementById("dossierOverlay");
+  const body = document.getElementById("dossierBody");
+
+  // Related signals for same company
+  const related = allEvents.filter(e =>
+    e.company_name === ev.company_name && e.id !== ev.id
+  ).slice(0, 8);
+
+  // Profile from allProfiles if available
+  const profile = (typeof allProfiles !== "undefined")
+    ? allProfiles.find(p =>
+        p.company_name?.toLowerCase() === ev.company_name?.toLowerCase()
+      )
+    : null;
+
+  const sevClass = `sev-${ev.severity || "medium"}`;
+
+  body.innerHTML = `
+    <div class="dossier-company">${escape(ev.company_name || "UNKNOWN")}</div>
+    <div class="dossier-headline">${escape(ev.headline || ev.signal_keyword || "")}</div>
+
+    <div class="dossier-badges">
+      <span class="dossier-badge ${sevClass}">${(ev.severity || "medium").toUpperCase()}</span>
+      <span class="dossier-badge source">${escape(ev.source || "")}</span>
+      <span class="dossier-badge source">${escape(ev.signal_category || ev.signal_keyword || "")}</span>
+      ${ev.order_date ? `<span class="dossier-badge source">ORDER: ${ev.order_date}</span>` : ""}
+    </div>
+
+    <div class="dossier-actions" style="margin-bottom:24px;">
+      ${ev.url && ev.url.startsWith("http") ? `
+        <a class="dossier-btn primary" href="${escapeAttr(ev.url)}" target="_blank" rel="noopener">
+          ↗ VIEW SOURCE ARTICLE
+        </a>` : ""}
+      <button class="dossier-btn" onclick="searchCompanyGoogle('${escapeAttr(ev.company_name)}')">
+        ⌕ SEARCH COMPANY
+      </button>
+      <button class="dossier-btn" onclick="searchNCLT('${escapeAttr(ev.company_name)}')">
+        ⚖ NCLT SEARCH
+      </button>
+    </div>
+
+    <!-- Signal Details -->
+    <div class="dossier-section">
+      <div class="dossier-section-title">◈ SIGNAL DETAILS</div>
+      <div class="dossier-section-body">
+        <div class="dossier-row">
+          <span class="dossier-row-label">Company</span>
+          <span class="dossier-row-val">${escape(ev.company_name || "—")}</span>
+        </div>
+        <div class="dossier-row">
+          <span class="dossier-row-label">Signal Type</span>
+          <span class="dossier-row-val">${escape(ev.signal_keyword || "—")} · ${escape(ev.signal_category || "—")}</span>
+        </div>
+        <div class="dossier-row">
+          <span class="dossier-row-label">Severity</span>
+          <span class="dossier-row-val" style="color:var(--accent-${ev.severity === 'critical' ? 'red' : ev.severity === 'high' ? 'amber' : 'blue'})">${(ev.severity || "medium").toUpperCase()}</span>
+        </div>
+        <div class="dossier-row">
+          <span class="dossier-row-label">Source</span>
+          <span class="dossier-row-val">${escape(ev.source || "—")}</span>
+        </div>
+        <div class="dossier-row">
+          <span class="dossier-row-label">Order Date</span>
+          <span class="dossier-row-val">${ev.order_date || "—"}</span>
+        </div>
+        <div class="dossier-row">
+          <span class="dossier-row-label">Detected</span>
+          <span class="dossier-row-val">${ev.detected_at ? new Date(ev.detected_at).toLocaleString("en-IN") : "—"}</span>
+        </div>
+        ${ev.snippet ? `
+        <div style="margin-top:12px;">
+          <div class="dossier-row-label" style="margin-bottom:8px;">SNIPPET</div>
+          <div class="dossier-snippet">${escape(ev.snippet)}</div>
+        </div>` : ""}
+      </div>
+    </div>
+
+    ${profile ? renderDossierProfile(profile) : ""}
+
+    <!-- Related Signals -->
+    <div class="dossier-section">
+      <div class="dossier-section-title">◈ OTHER SIGNALS — ${escape(ev.company_name || "")}</div>
+      <div class="dossier-section-body">
+        ${related.length ? `
+          <div class="dossier-other-signals">
+            ${related.map(r => `
+              <div class="dossier-signal-item" onclick="openDossierSignal(${JSON.stringify(r).replace(/"/g, '&quot;')})">
+                <div class="sig-kw">${escape(r.signal_keyword || r.signal_category || "")} · ${escape(r.source || "")}</div>
+                <div>${escape(r.headline || r.signal_keyword || "")}</div>
+              </div>
+            `).join("")}
+          </div>
+        ` : `<div class="dossier-empty">NO OTHER SIGNALS FOR THIS COMPANY</div>`}
+      </div>
+    </div>
+  `;
+
+  overlay.classList.add("open");
+  _dossierOpen = true;
+  document.body.style.overflow = "hidden";
+}
+
+function openDossierProfile(profile) {
+  const overlay = document.getElementById("dossierOverlay");
+  const body = document.getElementById("dossierBody");
+
+  const buyers = Array.isArray(profile.matched_buyers) ? profile.matched_buyers :
+    (profile.matched_buyers ? JSON.parse(profile.matched_buyers) : []);
+
+  body.innerHTML = `
+    <div class="dossier-company">${escape(profile.company_name || "UNKNOWN")}</div>
+    <div class="dossier-headline">${escape(profile.sector || "")} ${profile.stage ? "· " + escape(profile.stage) : ""}</div>
+
+    <div class="dossier-badges">
+      ${profile.sector ? `<span class="dossier-badge source">${escape(profile.sector)}</span>` : ""}
+      ${profile.stage ? `<span class="dossier-badge sev-high">${escape(profile.stage)}</span>` : ""}
+      ${profile.deal_size_cr ? `<span class="dossier-badge source">₹${escape(String(profile.deal_size_cr))} CR</span>` : ""}
+    </div>
+
+    <div class="dossier-actions" style="margin-bottom:24px;">
+      <button class="dossier-btn" onclick="searchCompanyGoogle('${escapeAttr(profile.company_name)}')">⌕ SEARCH COMPANY</button>
+      <button class="dossier-btn" onclick="searchNCLT('${escapeAttr(profile.company_name)}')">⚖ NCLT SEARCH</button>
+      <button class="dossier-btn" onclick="searchIBBI('${escapeAttr(profile.company_name)}')">◈ IBBI SEARCH</button>
+    </div>
+
+    ${renderDossierProfile(profile)}
+
+    <!-- Matched Buyers -->
+    <div class="dossier-section">
+      <div class="dossier-section-title">◈ MATCHED BUYERS (${buyers.length})</div>
+      <div class="dossier-section-body">
+        ${buyers.length ? buyers.map(b => `
+          <div class="dossier-row">
+            <span class="dossier-row-label">${escape(b.type || "Buyer")}</span>
+            <span class="dossier-row-val">${escape(b.name || b)}</span>
+          </div>
+        `).join("") : `<div class="dossier-empty">NO MATCHED BUYERS YET — RUN INTELLIGENCE CRAWLER</div>`}
+      </div>
+    </div>
+
+    <!-- Related Distress Signals -->
+    <div class="dossier-section">
+      <div class="dossier-section-title">◈ DISTRESS SIGNALS — ${escape(profile.company_name || "")}</div>
+      <div class="dossier-section-body">
+        ${renderRelatedSignals(profile.company_name)}
+      </div>
+    </div>
+  `;
+
+  overlay.classList.add("open");
+  _dossierOpen = true;
+  document.body.style.overflow = "hidden";
+}
+
+function renderDossierProfile(p) {
+  if (!p) return "";
+  return `
+    <div class="dossier-section">
+      <div class="dossier-section-title">◈ ASSET PROFILE</div>
+      <div class="dossier-section-body">
+        ${p.sector ? `<div class="dossier-row"><span class="dossier-row-label">Sector</span><span class="dossier-row-val">${escape(p.sector)}</span></div>` : ""}
+        ${p.stage ? `<div class="dossier-row"><span class="dossier-row-label">Stage</span><span class="dossier-row-val">${escape(p.stage)}</span></div>` : ""}
+        ${p.deal_size_cr ? `<div class="dossier-row"><span class="dossier-row-label">Deal Size</span><span class="dossier-row-val">₹${escape(String(p.deal_size_cr))} CR</span></div>` : ""}
+        ${p.location ? `<div class="dossier-row"><span class="dossier-row-label">Location</span><span class="dossier-row-val">${escape(p.location)}</span></div>` : ""}
+        ${p.resolution_professional ? `<div class="dossier-row"><span class="dossier-row-label">RP</span><span class="dossier-row-val">${escape(p.resolution_professional)}</span></div>` : ""}
+        ${p.nclt_bench ? `<div class="dossier-row"><span class="dossier-row-label">NCLT Bench</span><span class="dossier-row-val">${escape(p.nclt_bench)}</span></div>` : ""}
+        ${p.case_number ? `<div class="dossier-row"><span class="dossier-row-label">Case No.</span><span class="dossier-row-val">${escape(p.case_number)}</span></div>` : ""}
+        ${p.admitted_date ? `<div class="dossier-row"><span class="dossier-row-label">Admitted</span><span class="dossier-row-val">${escape(String(p.admitted_date))}</span></div>` : ""}
+        ${p.liquidation_value ? `<div class="dossier-row"><span class="dossier-row-label">Liq. Value</span><span class="dossier-row-val">₹${escape(String(p.liquidation_value))} CR</span></div>` : ""}
+        ${p.notes ? `<div style="margin-top:10px;"><div class="dossier-row-label" style="margin-bottom:6px;">NOTES</div><div class="dossier-snippet">${escape(p.notes)}</div></div>` : ""}
+      </div>
+    </div>
+  `;
+}
+
+function renderRelatedSignals(companyName) {
+  if (typeof allEvents === "undefined" || !allEvents.length) {
+    return `<div class="dossier-empty">NO SIGNALS LOADED</div>`;
+  }
+  const signals = allEvents.filter(e =>
+    (e.company_name || "").toLowerCase() === (companyName || "").toLowerCase()
+  ).slice(0, 10);
+  if (!signals.length) {
+    return `<div class="dossier-empty">NO DISTRESS SIGNALS FOUND FOR THIS COMPANY</div>`;
+  }
+  return `<div class="dossier-other-signals">${signals.map(r => `
+    <div class="dossier-signal-item" onclick="openDossierSignal(${JSON.stringify(r).replace(/"/g, '&quot;')})">
+      <div class="sig-kw">${escape(r.signal_keyword || r.signal_category || "")} · ${escape(r.source || "")}</div>
+      <div>${escape(r.headline || r.signal_keyword || "")}</div>
+    </div>
+  `).join("")}</div>`;
+}
+
+function searchCompanyGoogle(name) {
+  window.open(`https://www.google.com/search?q=${encodeURIComponent(name + " insolvency NCLT India")}`, "_blank");
+}
+function searchNCLT(name) {
+  window.open(`https://www.livelaw.in/?s=${encodeURIComponent(name + " NCLT")}`, "_blank");
+}
+function searchIBBI(name) {
+  window.open(`https://www.ibbi.gov.in/search?q=${encodeURIComponent(name)}`, "_blank");
+}
+
+function closeDossierBtn() {
+  const overlay = document.getElementById("dossierOverlay");
+  overlay.classList.remove("open");
+  _dossierOpen = false;
+  document.body.style.overflow = "";
+}
+
+function closeDossier(event) {
+  // Only close if clicking the overlay backdrop (not the panel itself)
+  if (event.target === document.getElementById("dossierOverlay")) {
+    closeDossierBtn();
+  }
+}
+
+// ESC key to close
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && _dossierOpen) closeDossierBtn();
+});
+
+function formatOrderDate(iso) {
+  // iso is YYYY-MM-DD (just a date, no time)
+  if (!iso) return "—";
+  try {
+    const [y, m, d] = iso.split("-").map(Number);
+    const dt = new Date(y, m - 1, d);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const diffDays = Math.round((today - dt) / 86400000);
+    if (diffDays === 0) return "TODAY";
+    if (diffDays === 1) return "YESTERDAY";
+    if (diffDays <= 7)  return `${diffDays}d ago`;
+    return dt.toLocaleDateString("en-IN", { day:"2-digit", month:"short", year:"2-digit" });
+  } catch { return iso; }
+}
+
+function formatTime(iso) {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMs = now - d;
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "2-digit" });
+  } catch { return iso; }
+}
+
+function updateLastRefreshed() {
+  document.getElementById("lastUpdated").textContent =
+    `LAST REFRESH: ${new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}`;
+}
+
+function showError(msg) {
+  const el = document.getElementById("errorBanner");
+  if (!el) { if (msg) console.error("Dashboard error:", msg); return; }
+  if (msg) {
+    el.textContent = "⚠ " + msg;
+    el.classList.add("visible");
+  } else {
+    el.classList.remove("visible");
+  }
+}
+
+function escape(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function escapeAttr(str) {
+  return String(str || "").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+// ── BOOT ──────────────────────────────────────
+document.addEventListener("DOMContentLoaded", init);
+
+// ═══════════════════════════════════════════════
+// TAB NAVIGATION
+// ═══════════════════════════════════════════════
+let currentTab = "signals";
+let allProfiles = [];
+let allBuyers   = [];
+
+function switchTab(tab, btn) {
+  currentTab = tab;
+  document.querySelectorAll(".nav-tab").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+
+  document.getElementById("signalView").style.display    = tab === "signals"  ? "block" : "none";
+  document.getElementById("dealIntelView").style.display = tab === "deals"    ? "block" : "none";
+  document.getElementById("buyersView").style.display    = tab === "buyers"   ? "block" : "none";
+  document.getElementById("pipelineView").style.display  = tab === "pipeline" ? "block" : "none";
+  document.getElementById("hotdealsView").style.display  = tab === "hotdeals" ? "block" : "none";
+  document.getElementById("caprateView").style.display   = tab === "caprate"  ? "block" : "none";
+
+  if (tab === "deals"    && allProfiles.length === 0) loadDealIntel();
+  if (tab === "buyers"   && allBuyers.length   === 0) loadBuyers();
+  if (tab === "pipeline" && !pipelineLoaded)           loadPipeline();
+  if (tab === "hotdeals" && !hotDealsLoaded)           loadHotDeals();
+  if (tab === "caprate"  && !capRateLoaded)            loadCapRate();
+}
+
+// ═══════════════════════════════════════════════
+// DEAL INTELLIGENCE
+// ═══════════════════════════════════════════════
+async function loadDealIntel() {
+  document.getElementById("dealGrid").innerHTML =
+    `<div class="deal-empty">LOADING DEAL INTELLIGENCE...</div>`;
+  try {
+    allProfiles = await supabaseGet("asset_profiles", {
+      select: "*",
+      order:  "created_at.desc",
+      limit:  "300",
+    });
+    document.getElementById("navBadgeDeals").textContent = allProfiles.length;
+    renderDeals();
+  } catch(e) {
+    document.getElementById("dealGrid").innerHTML =
+      `<div class="deal-empty">ERROR LOADING — ${e.message}</div>`;
+  }
+}
+
+function renderDeals() {
+  const search = (document.getElementById("dealSearch")?.value || "").toLowerCase();
+  const sector = document.getElementById("dealSectorFilter")?.value || "";
+  const stage  = document.getElementById("dealStageFilter")?.value  || "";
+
+  let profiles = [...allProfiles];
+
+  if (search) profiles = profiles.filter(p =>
+    (p.company_name || "").toLowerCase().includes(search) ||
+    (p.sector       || "").toLowerCase().includes(search) ||
+    (p.rp_name      || "").toLowerCase().includes(search)
+  );
+  if (sector) profiles = profiles.filter(p => p.sector === sector);
+  if (stage)  profiles = profiles.filter(p => p.stage  === stage);
+
+  if (!profiles.length) {
+    document.getElementById("dealGrid").innerHTML =
+      `<div class="deal-empty">NO DEALS MATCH CURRENT FILTERS<br><br>
+       <span style="font-size:10px;opacity:0.5;">Run the intelligence crawler to populate deal profiles</span></div>`;
+    return;
+  }
+
+  document.getElementById("dealGrid").innerHTML = profiles.map(p => renderDealCard(p)).join("");
+}
+
+function renderDealCard(p) {
+  const buyers = Array.isArray(p.matched_buyers) ? p.matched_buyers : 
+                 (p.matched_buyers ? JSON.parse(p.matched_buyers) : []);
+  const topBuyers = buyers.slice(0, 5);
+  const maxScore  = topBuyers[0]?.match_score || 100;
+
+  const buyersHtml = topBuyers.length ? topBuyers.map(b => `
+    <div class="buyer-item">
+      <div style="flex:1;min-width:0;">
+        <div class="buyer-name">${esc(b.buyer_name)}</div>
+        ${b.reasons?.[0] ? `<div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);margin-top:2px;">${esc(b.reasons[0])}</div>` : ""}
+        ${b.contact_name  ? `<div style="font-family:var(--mono);font-size:9px;color:var(--accent-blue);margin-top:2px;">👤 ${esc(b.contact_name)}</div>` : ""}
+        ${b.contact_email ? `<div style="font-family:var(--mono);font-size:9px;color:var(--accent-blue);">✉ <a href="mailto:${esc(b.contact_email)}" onclick="event.stopPropagation()">${esc(b.contact_email)}</a></div>` : ""}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;">
+        <span class="buyer-type-badge">${esc(b.buyer_type || "FUND")}</span>
+        <div class="match-bar"><div class="match-fill" style="width:${Math.round(b.match_score/maxScore*100)}%"></div></div>
+        ${b.typical_haircut ? `<span style="font-family:var(--mono);font-size:8px;color:var(--text-muted);">~${b.typical_haircut}% haircut</span>` : ""}
+      </div>
+    </div>
+  `).join("") : `<div style="font-family:var(--mono);font-size:10px;color:var(--text-muted);padding:8px;">No matches yet — run intelligence crawler</div>`;
+
+  const rpHtml = p.rp_name ? `
+    <div class="rp-card">
+      <div class="rp-name">${esc(p.rp_name)}</div>
+      <div class="rp-detail">Resolution Professional</div>
+      ${p.rp_email ? `<div class="rp-detail">✉ <a href="mailto:${esc(p.rp_email)}">${esc(p.rp_email)}</a></div>` : ""}
+      ${p.rp_phone ? `<div class="rp-detail">📞 ${esc(p.rp_phone)}</div>` : ""}
+    </div>
+  ` : `<div style="font-family:var(--mono);font-size:10px;color:var(--text-muted);padding:8px;">RP not identified — check NCLT order</div>`;
+
+  const directors = Array.isArray(p.directors) ? p.directors :
+                    (p.directors ? JSON.parse(p.directors) : []);
+  const dirHtml = directors.length ? directors.map(d =>
+    `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:4px;">
+      <strong style="color:var(--text-primary)">${esc(d.name || d)}</strong>
+      ${d.din ? `<span style="font-family:var(--mono);font-size:9px;color:var(--text-muted);margin-left:6px;">DIN: ${esc(d.din)}</span>` : ""}
+    </div>`
+  ).join("") : `<div style="font-family:var(--mono);font-size:10px;color:var(--text-muted);">Directors not yet fetched</div>`;
+
+  return `
+  <div class="deal-card" onclick="openDossierProfile(${JSON.stringify(p).replace(/"/g, '&quot;')})" style="cursor:pointer;">
+    <div class="deal-card-header">
+      <div>
+        <div class="deal-company">${esc(p.company_name || "Unknown Company")}</div>
+        <div class="deal-meta">
+          ${p.sector      ? `<span class="deal-tag sector">${esc(p.sector.replace(/_/g," "))}</span>` : ""}
+          ${p.stage       ? `<span class="deal-tag stage">${esc(p.stage.toUpperCase())}</span>` : ""}
+          ${p.claim_amount? `<span class="deal-tag amount">₹${esc(String(p.claim_amount))} Cr</span>` : ""}
+          ${p.nclt_bench  ? `<span class="deal-tag bench">NCLT ${esc(p.nclt_bench)}</span>` : ""}
+          ${p.case_number ? `<span class="deal-tag" style="border-color:var(--text-muted);">${esc(p.case_number)}</span>` : ""}
+        </div>
+      </div>
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);text-align:right;flex-shrink:0;">
+        ${p.admission_date ? `Listed: <span style="color:var(--accent-amber)">${esc(p.admission_date)}</span><br>` : ""}
+        <span style="color:var(--text-muted);">${buyers.length} buyers matched</span>
+      </div>
+    </div>
+    <div class="deal-body">
+      <div>
+        <div class="deal-section-title">◈ MATCHED BUYERS (${buyers.length})</div>
+        <div class="buyer-list">${buyersHtml}</div>
+      </div>
+      <div>
+        <div class="deal-section-title">◉ RESOLUTION PROFESSIONAL</div>
+        ${rpHtml}
+      </div>
+      <div>
+        <div class="deal-section-title">◎ COMPANY DIRECTORS</div>
+        <div class="deal-section-content">${dirHtml}</div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════════════════════
+// BUYERS UNIVERSE
+// ═══════════════════════════════════════════════
+async function loadBuyers() {
+  document.getElementById("buyersGrid").innerHTML =
+    `<div class="deal-empty">LOADING BUYERS...</div>`;
+  try {
+    allBuyers = await supabaseGet("buyers", {
+      select: "*",
+      order:  "deals_completed.desc.nullslast",
+      limit:  "200",
+    });
+    document.getElementById("navBadgeBuyers").textContent = allBuyers.length;
+    renderBuyers();
+  } catch(e) {
+    document.getElementById("buyersGrid").innerHTML =
+      `<div class="deal-empty">ERROR: ${e.message}</div>`;
+  }
+}
+
+function renderBuyers() {
+  const typeFilter   = document.getElementById("buyerTypeFilter")?.value   || "";
+  const sectorFilter = document.getElementById("buyerSectorFilter")?.value || "";
+
+  let buyers = [...allBuyers];
+  if (typeFilter)   buyers = buyers.filter(b => b.type === typeFilter);
+  if (sectorFilter) buyers = buyers.filter(b =>
+    (b.target_sectors || []).includes(sectorFilter)
+  );
+
+  if (!buyers.length) {
+    document.getElementById("buyersGrid").innerHTML =
+      `<div class="deal-empty">NO BUYERS MATCH FILTERS</div>`;
+    return;
+  }
+
+  document.getElementById("buyersGrid").innerHTML = buyers.map(b => {
+    const sectors = (b.target_sectors || []).slice(0, 4);
+    const notable = (b.notable_deals  || []).slice(0, 3);
+    const typeColors = {
+      ARC: "#e8253a", PE_FUND: "#4d8fff",
+      FAMILY_OFFICE: "#9b59b6", STRATEGIC: "#f5a623",
+      NBFC: "#00c896",
+    };
+    const tc = typeColors[b.type] || "var(--text-muted)";
+
+    return `
+    <div class="buyer-dir-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+        <div class="buyer-dir-name">${esc(b.name)}</div>
+        <span style="font-family:var(--mono);font-size:8px;padding:2px 6px;
+          background:${tc}22;color:${tc};border:1px solid ${tc}44;flex-shrink:0;">
+          ${esc(b.type || "FUND")}
+        </span>
+      </div>
+
+      <div class="buyer-dir-tags">
+        ${sectors.map(s => `<span class="deal-tag sector" style="font-size:8px;">${esc(s.replace(/_/g," "))}</span>`).join("")}
+      </div>
+
+      ${b.primary_contact_name ? `
+        <div class="buyer-dir-row">👤 <span>${esc(b.primary_contact_name)}</span></div>` : ""}
+      ${b.primary_contact_email ? `
+        <div class="buyer-dir-row">✉ <a href="mailto:${esc(b.primary_contact_email)}" 
+          style="color:var(--accent-blue);text-decoration:none;">${esc(b.primary_contact_email)}</a></div>` : ""}
+      ${b.primary_contact_phone ? `
+        <div class="buyer-dir-row">📞 <span>${esc(b.primary_contact_phone)}</span></div>` : ""}
+      ${b.website ? `
+        <div class="buyer-dir-row">🌐 <a href="${esc(b.website)}" target="_blank" 
+          style="color:var(--accent-blue);text-decoration:none;">${esc(b.website.replace("https://",""))}</a></div>` : ""}
+
+      <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);
+                  display:flex;gap:16px;flex-wrap:wrap;">
+        ${b.min_deal_size ? `<div class="buyer-dir-row">Deal Size: <span>₹${b.min_deal_size}–${b.max_deal_size || "∞"} Cr</span></div>` : ""}
+        ${b.typical_haircut_pct ? `<div class="buyer-dir-row">Haircut: <span>~${b.typical_haircut_pct}%</span></div>` : ""}
+        ${b.deals_completed ? `<div class="buyer-dir-row">Deals: <span>${b.deals_completed}</span></div>` : ""}
+      </div>
+
+      ${notable.length ? `
+        <div style="margin-top:8px;font-family:var(--mono);font-size:9px;color:var(--text-muted);">
+          Notable: ${notable.map(d => `<span style="color:var(--text-secondary)">${esc(d)}</span>`).join(", ")}
+        </div>` : ""}
+    </div>`;
+  }).join("");
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// PIPELINE TAB
+// ═══════════════════════════════════════════════════════════════
+pipelineData = [];
+pipelineLoaded = false;
+
+async function loadPipeline() {
+  document.getElementById("pipelineContent").innerHTML =
+    '<div class="deal-empty">LOADING PIPELINE...</div>';
+  try {
+    pipelineData = await supabaseGet("deal_pipeline", {
+      select: "id,deal_name,property_name,micro_market,deal_size_crore,asset_class,tenant_name,seller_type,stage,priority,next_action,next_action_date,assigned_to,notes,source_channel,cap_rate_pct",
+      order: "next_action_date.asc.nullslast",
+      limit: 100,
+    });
+    document.getElementById("navBadgePipeline").textContent = pipelineData.filter(d => !["closed","dropped"].includes(d.stage)).length;
+    pipelineLoaded = true;
+    renderPipeline();
+  } catch(e) {
+    document.getElementById("pipelineContent").innerHTML =
+      `<div class="deal-empty">ERROR: ${e.message}</div>`;
+  }
+}
+
+function renderPipeline() {
+  const stageF = document.getElementById("pipelineStageFilter")?.value || "";
+  const priF   = document.getElementById("pipelinePriorityFilter")?.value || "";
+  let data = pipelineData.filter(d => !["closed","dropped"].includes(d.stage));
+  if (stageF) data = data.filter(d => d.stage === stageF);
+  if (priF)   data = data.filter(d => d.priority === priF);
+
+  const STAGE_COLORS = {
+    identified: "#555566", approached: "#4d8fff", term_sheet: "#f5a623",
+    loi_signed: "#00c896", due_diligence: "#9b59b6", negotiation: "#e8253a",
+    documentation: "#e8253a", closed: "#00c896", dropped: "#333"
+  };
+  const PRI_COLORS = { urgent:"#e8253a", high:"#f5a623", normal:"#888" };
+
+  if (!data.length) {
+    document.getElementById("pipelineContent").innerHTML = '<div class="deal-empty">NO PIPELINE DEALS MATCH FILTERS</div>';
+    return;
+  }
+
+  // Kanban-style stage columns
+  const STAGES = ["identified","approached","term_sheet","loi_signed","due_diligence","negotiation","documentation"];
+  const byStage = {};
+  STAGES.forEach(s => { byStage[s] = []; });
+  data.forEach(d => { if (byStage[d.stage]) byStage[d.stage].push(d); });
+
+  let html = `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:12px;min-width:900px;overflow-x:auto;">`;
+
+  STAGES.forEach(stage => {
+    const deals = byStage[stage];
+    const col = STAGE_COLORS[stage] || "#555";
+    const label = stage.replace(/_/g," ").toUpperCase();
+    html += `
+      <div style="background:var(--bg-2);border:1px solid var(--border);border-top:2px solid ${col};">
+        <div style="padding:8px 10px;font-family:var(--mono);font-size:9px;color:${col};letter-spacing:0.1em;border-bottom:1px solid var(--border);">
+          ${label} <span style="float:right;background:${col}22;color:${col};padding:1px 5px;">${deals.length}</span>
+        </div>
+        <div style="padding:8px;display:flex;flex-direction:column;gap:8px;min-height:80px;">`;
+
+    deals.forEach(d => {
+      const priColor = PRI_COLORS[d.priority] || "#888";
+      const price = d.deal_size_crore ? `₹${d.deal_size_crore.toFixed(0)}Cr` : "—";
+      const due = d.next_action_date ? new Date(d.next_action_date).toLocaleDateString("en-IN",{day:"numeric",month:"short"}) : "";
+      const overdue = d.next_action_date && new Date(d.next_action_date) < new Date();
+      html += `
+        <div style="background:var(--bg-3);border:1px solid var(--border);padding:8px 10px;cursor:pointer;transition:border-color 0.15s;"
+             onmouseenter="this.style.borderColor='${col}'" onmouseleave="this.style.borderColor='var(--border)'"
+             title="${esc(d.notes||'')}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:4px;">
+            <div style="font-size:11px;font-weight:500;color:var(--text-primary);line-height:1.3;">${esc(d.deal_name)}</div>
+            <span style="font-family:var(--mono);font-size:8px;background:${priColor}22;color:${priColor};padding:1px 5px;flex-shrink:0;">${d.priority?.toUpperCase()||"—"}</span>
+          </div>
+          <div style="margin-top:5px;display:flex;gap:6px;flex-wrap:wrap;">
+            ${d.micro_market?`<span style="font-family:var(--mono);font-size:8px;color:var(--text-muted);">📍${esc(d.micro_market)}</span>`:""}
+            ${price!=="—"?`<span style="font-family:var(--mono);font-size:8px;color:var(--accent-green);">${price}</span>`:""}
+            ${d.asset_class?`<span style="font-family:var(--mono);font-size:8px;color:var(--text-muted);">${esc(d.asset_class.replace(/_/g," ").toUpperCase())}</span>`:""}
+          </div>
+          ${d.next_action?`<div style="margin-top:5px;font-size:10px;color:var(--text-secondary);line-height:1.3;">${esc(d.next_action.slice(0,70))}</div>`:""}
+          <div style="margin-top:5px;display:flex;justify-content:space-between;align-items:center;">
+            ${d.assigned_to?`<span style="font-family:var(--mono);font-size:9px;color:var(--text-muted);">👤 ${esc(d.assigned_to)}</span>`:"<span></span>"}
+            ${due?`<span style="font-family:var(--mono);font-size:9px;color:${overdue?"#e8253a":"var(--text-muted)"};">${overdue?"⚠ ":""}${due}</span>`:""}
+          </div>
+        </div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  html += `</div>`;
+  document.getElementById("pipelineContent").innerHTML = html;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// HOT DEALS TAB
+// ═══════════════════════════════════════════════════════════════
+hotDealsData = [];
+hotDealsLoaded = false;
+
+async function loadHotDeals() {
+  document.getElementById("hotdealsContent").innerHTML =
+    '<div class="deal-empty">SCANNING HOT DEALS...</div>';
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7*24*60*60*1000).toISOString();
+    hotDealsData = await supabaseGet("distress_events", {
+      select: "id,company_name,signal_category,source,url,headline,detected_at,deal_score,price_crore,location,asset_class,channel,severity,metadata,is_mmr",
+      "is_duplicate": "eq.false",
+      "deal_score": "gte.50",
+      "detected_at": `gte.${sevenDaysAgo}`,
+      order: "deal_score.desc",
+      limit: 200,
+    });
+    // Also fetch pre_leased_assets
+    const preleased = await supabaseGet("pre_leased_assets", {
+      select: "id,name,micro_market,asset_class,asking_price_crore,cap_rate_pct,tenant_name,tenant_category,deal_score,source_url,meets_investor_threshold,status",
+      order: "deal_score.desc",
+      limit: 50,
+    });
+    hotDealsData._preleased = preleased;
+    document.getElementById("navBadgeHot").textContent = hotDealsData.length + preleased.length;
+    hotDealsLoaded = true;
+    renderHotDeals();
+  } catch(e) {
+    document.getElementById("hotdealsContent").innerHTML =
+      `<div class="deal-empty">ERROR: ${e.message}</div>`;
+  }
+}
+
+function renderHotDeals() {
+  const chanF  = document.getElementById("hotChannelFilter")?.value || "";
+  const assetF = document.getElementById("hotAssetFilter")?.value || "";
+
+  let data = [...(hotDealsData || [])];
+  if (chanF)  data = data.filter(d => (d.channel||"") === chanF);
+  if (assetF) data = data.filter(d => (d.asset_class||"") === assetF);
+
+  const preleased = (hotDealsData._preleased || []).filter(p =>
+    (!assetF || (p.asset_class||"").includes(assetF))
+  );
+
+  const CHAN_COLORS = {
+    bank_auction:"#f5a623", sarfaesi:"#e8253a", drt:"#4d8fff",
+    arc_portfolio:"#9b59b6", pre_leased_cre:"#00c896",
+    legal_intelligence:"#4d8fff", pe_activity:"#e8253a",
+    market_distress:"#e8253a", regulatory:"#888", media:"#888"
+  };
+
+  const CHAN_LABELS = {
+    bank_auction:"🏦 BANK AUCTION", sarfaesi:"⚖️ SARFAESI",
+    drt:"🏛️ DRT PRE-AUCTION", arc_portfolio:"🏗️ ARC PORTFOLIO",
+    pre_leased_cre:"🏢 PRE-LEASED", legal_intelligence:"📋 LEGAL INTEL",
+    pe_activity:"💼 PE ACTIVITY", market_distress:"📉 MARKET STRESS",
+    regulatory:"📜 REGULATORY", media:"📰 MEDIA"
+  };
+
+  let html = "";
+
+  // Pre-leased assets panel (investor-ready)
+  if (preleased.length && (!chanF || chanF === "pre_leased_cre")) {
+    html += `
+      <div style="margin-bottom:24px;">
+        <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.15em;color:#00c896;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #00c89622;">
+          🏢 PRE-LEASED ASSETS — INVESTOR MANDATES
+          <span style="background:#00c89622;color:#00c896;padding:2px 8px;margin-left:8px;">${preleased.length} ASSETS</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;">`;
+
+    preleased.forEach(p => {
+      const threshold = p.meets_investor_threshold;
+      html += `
+        <div style="background:var(--bg-2);border:1px solid ${threshold?"#00c896":"var(--border)"};padding:14px 16px;cursor:pointer;"
+             onclick="window.open('${esc(p.source_url||"#")}','_blank')">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div style="font-size:12px;font-weight:500;color:var(--text-primary);">${esc(p.name||p.micro_market||"Property")}</div>
+            ${threshold?'<span style="font-family:var(--mono);font-size:8px;background:#00c89622;color:#00c896;padding:2px 6px;">✓ 8.5%+ TARGET</span>':''}
+          </div>
+          <div style="margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;">
+            ${p.micro_market?`<span style="font-family:var(--mono);font-size:9px;color:var(--text-muted);">📍${esc(p.micro_market)}</span>`:""}
+            ${p.cap_rate_pct?`<span style="font-family:var(--mono);font-size:9px;color:${p.cap_rate_pct>=8.5?"#00c896":"#f5a623"};">CAP ${p.cap_rate_pct.toFixed(1)}%</span>`:""}
+            ${p.asking_price_crore?`<span style="font-family:var(--mono);font-size:9px;color:var(--accent-green);">₹${p.asking_price_crore.toFixed(0)}Cr</span>`:""}
+          </div>
+          ${p.tenant_name?`<div style="margin-top:6px;font-size:10px;color:var(--text-secondary);">🏢 ${esc(p.tenant_name)} <span style="color:${p.tenant_category==="blue_chip"?"#00c896":"var(--text-muted)"};">[${esc(p.tenant_category||"")}]</span></div>`:""}
+          <div style="margin-top:8px;display:flex;justify-content:space-between;">
+            <span style="font-family:var(--mono);font-size:9px;color:var(--text-muted);">SCORE: <span style="color:#f5a623;">${p.deal_score||0}</span></span>
+            <span style="font-family:var(--mono);font-size:9px;color:var(--text-muted);">${esc((p.status||"").toUpperCase())}</span>
+          </div>
+        </div>`;
+    });
+    html += `</div></div>`;
+  }
+
+  // Hot distress events
+  if (!data.length) {
+    html += '<div class="deal-empty">NO HOT DEALS MATCH CURRENT FILTERS</div>';
+  } else {
+    html += `
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.15em;color:var(--accent-red);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--accent-red-dim);">
+        🔥 DISTRESS SIGNALS — SCORED &amp; RANKED
+        <span style="background:var(--accent-red-dim);color:var(--accent-red);padding:2px 8px;margin-left:8px;">${data.length} SIGNALS</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">`;
+
+    data.forEach(ev => {
+      const score = ev.deal_score || 0;
+      const scoreColor = score >= 75 ? "#e8253a" : score >= 55 ? "#f5a623" : "#888";
+      const ch = ev.channel || "other";
+      const chColor = CHAN_COLORS[ch] || "#888";
+      const chLabel = CHAN_LABELS[ch] || ch.replace(/_/g," ").toUpperCase();
+      const price = ev.price_crore ? `₹${ev.price_crore.toFixed(1)}Cr` : "";
+      let meta = {};
+      try { meta = typeof ev.metadata === "string" ? JSON.parse(ev.metadata) : (ev.metadata||{}); } catch(e) {}
+      const bank = meta.bank || "";
+      const auctionDate = meta.auction_date || "";
+      const dt = ev.detected_at ? new Date(ev.detected_at).toLocaleDateString("en-IN",{day:"numeric",month:"short"}) : "";
+
+      html += `
+        <div style="background:var(--bg-2);border:1px solid var(--border);border-left:3px solid ${chColor};padding:12px 14px;cursor:pointer;transition:background 0.15s;"
+             onmouseenter="this.style.background='var(--bg-3)'" onmouseleave="this.style.background='var(--bg-2)'"
+             onclick="window.open('${esc(ev.url||"#")}','_blank')">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <div style="min-width:52px;text-align:center;background:${scoreColor}15;border:1px solid ${scoreColor}33;padding:4px 0;">
+              <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:${scoreColor};line-height:1;">${score}</div>
+              <div style="font-family:var(--mono);font-size:7px;color:${scoreColor};opacity:0.7;">SCORE</div>
+            </div>
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+                <span style="font-size:12px;font-weight:500;color:var(--text-primary);">${esc(ev.company_name||"Unknown")}</span>
+                <span style="font-family:var(--mono);font-size:8px;background:${chColor}22;color:${chColor};padding:2px 6px;">${chLabel}</span>
+                ${ev.is_mmr?'<span style="font-family:var(--mono);font-size:8px;background:#4d8fff22;color:#4d8fff;padding:2px 6px;">MMR</span>':""}
+                ${ev.asset_class?`<span style="font-family:var(--mono);font-size:8px;color:var(--text-muted);">${ev.asset_class.toUpperCase()}</span>`:""}
+              </div>
+              <div style="font-size:11px;color:var(--text-secondary);line-height:1.4;margin-bottom:6px;">${esc((ev.headline||"").slice(0,160))}</div>
+              <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;">
+                ${ev.location?`<span style="font-family:var(--mono);font-size:9px;color:var(--text-muted);">📍${esc(ev.location)}</span>`:""}
+                ${price?`<span style="font-family:var(--mono);font-size:9px;color:var(--accent-green);">${price}</span>`:""}
+                ${bank?`<span style="font-family:var(--mono);font-size:9px;color:var(--text-muted);">🏦 ${esc(bank)}</span>`:""}
+                ${auctionDate?`<span style="font-family:var(--mono);font-size:9px;color:#f5a623;">📅 ${esc(auctionDate)}</span>`:""}
+                ${dt?`<span style="font-family:var(--mono);font-size:9px;color:var(--text-muted);">${dt}</span>`:""}
+              </div>
+            </div>
+          </div>
+        </div>`;
+    });
+
+    html += `</div>`;
+  }
+
+  document.getElementById("hotdealsContent").innerHTML = html;
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// CAP RATE MAP TAB
+// ═══════════════════════════════════════════════════════════════
+capRateData = [];
+capRateLoaded = false;
+
+const MUMBAI_BENCHMARKS = [
+  { market:"BKC",           class:"Grade A",  cap:5.8,  rent:350, note:"Core CBD" },
+  { market:"Lower Parel",   class:"Grade A",  cap:6.0,  rent:280, note:"Office corridor" },
+  { market:"Worli",         class:"Grade A",  cap:6.2,  rent:260, note:"Premium" },
+  { market:"Andheri",       class:"Grade A",  cap:6.8,  rent:150, note:"IT zone" },
+  { market:"Powai",         class:"Grade A",  cap:7.0,  rent:130, note:"Tech campus" },
+  { market:"Goregaon",      class:"Grade A",  cap:7.3,  rent:120, note:"SBD north" },
+  { market:"Malad",         class:"Grade A",  cap:7.5,  rent:115, note:"Suburban — ACTIVE DEAL" },
+  { market:"Kurla",         class:"Grade B",  cap:7.8,  rent:110, note:"— ACTIVE DEAL" },
+  { market:"Thane",         class:"Grade A",  cap:8.2,  rent:80,  note:"Suburban" },
+  { market:"Navi Mumbai",   class:"Grade A",  cap:8.5,  rent:75,  note:"✓ Meets threshold" },
+  { market:"Airoli/Belapur",class:"Grade B",  cap:9.2,  rent:65,  note:"✓ Exceeds threshold" },
+  { market:"Vashi",         class:"Grade A",  cap:8.8,  rent:80,  note:"✓ Node CBD" },
+];
+
+async function loadCapRate() {
+  try {
+    // Try to load from DB, fall back to hardcoded
+    capRateData = await supabaseGet("cap_rate_snapshots", {
+      order: "cap_rate_pct.asc",
+      limit: 100,
+    });
+  } catch(e) {
+    capRateData = [];
+  }
+  document.getElementById("navBadgeCapRate").textContent = MUMBAI_BENCHMARKS.length;
+  capRateLoaded = true;
+  renderCapRate();
+}
+
+function computeCapRate(rentPsf, areaSqft, priceCr) {
+  if (!rentPsf || !areaSqft || !priceCr) return null;
+  const noi = rentPsf * areaSqft * 11; // 11 effective months
+  const priceInr = priceCr * 1e7;
+  return (noi / priceInr * 100).toFixed(2);
+}
+
+function renderCapRate() {
+  const THRESHOLD = 8.5;
+  const INV_TARGET = 9.0;
+
+  // Build escalation table for investor pitch
+  function projectedYield(capRate, years, escRate, escFreq) {
+    let totalReturn = 0;
+    let yr1Yield = capRate / 100;
+    let curYield = yr1Yield;
+    for (let y = 1; y <= years; y++) {
+      if (y > 1 && (y-1) % escFreq === 0) curYield *= (1 + escRate);
+      totalReturn += curYield;
+    }
+    return (totalReturn * 100 / years).toFixed(1);
+  }
+
+  let html = `
+    <!-- Investor context bar -->
+    <div style="background:var(--bg-3);border:1px solid var(--border);padding:14px 18px;margin-bottom:24px;display:flex;flex-wrap:wrap;gap:20px;align-items:center;">
+      <div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);margin-bottom:3px;">INVESTOR TARGET (LONDON GROUP)</div>
+        <div style="font-family:var(--mono);font-size:20px;color:#f5a623;font-weight:700;">8.5–9.0%</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);">Entry cap rate</div>
+      </div>
+      <div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);margin-bottom:3px;">PITCH STORY</div>
+        <div style="font-size:12px;color:var(--text-secondary);max-width:340px;">3 escalations × 15% over 10 years → average effective yield upgrade of ~4.5% above entry cap rate</div>
+      </div>
+      <div style="margin-left:auto;text-align:right;">
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);margin-bottom:3px;">MUMBAI GRADE A RANGE</div>
+        <div style="font-family:var(--mono);font-size:20px;color:#e8253a;font-weight:700;">5.8–7.5%</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);">Gap to investor target</div>
+      </div>
+    </div>
+
+    <!-- Cap rate bar chart by micro-market -->
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:14px;">
+      ◈ CAP RATE BY MICRO-MARKET — INVESTOR THRESHOLD AT 8.5%
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:32px;">`;
+
+  const maxCap = 10;
+  MUMBAI_BENCHMARKS.forEach(b => {
+    const pct = (b.cap / maxCap * 100).toFixed(1);
+    const meetsThreshold = b.cap >= THRESHOLD;
+    const barColor = meetsThreshold ? "#00c896" : b.cap >= 7.0 ? "#f5a623" : "#e8253a";
+    const isActive = b.note.includes("ACTIVE DEAL");
+
+    html += `
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="font-family:var(--mono);font-size:10px;color:${isActive?"#f5a623":"var(--text-secondary)"};width:130px;text-align:right;flex-shrink:0;">
+          ${esc(b.market)}${isActive?' ★':''}
+        </div>
+        <div style="flex:1;background:var(--bg-3);height:22px;position:relative;border:1px solid var(--border);">
+          <div style="height:100%;width:${pct}%;background:${barColor}22;border-right:2px solid ${barColor};transition:width 0.4s;"></div>
+          <div style="position:absolute;top:50%;left:${Math.min(parseFloat(pct)+1,85)}%;transform:translateY(-50%);font-family:var(--mono);font-size:10px;color:${barColor};">${b.cap}%</div>
+          ${meetsThreshold?`<div style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:9px;color:#00c896;">✓ MEETS</div>`:""}
+        </div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);width:80px;flex-shrink:0;">₹${b.rent}/psf</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);width:160px;flex-shrink:0;">${esc(b.note)}</div>
+      </div>`;
+  });
+
+  // Threshold marker
+  html += `
+      <div style="display:flex;align-items:center;gap:12px;margin-top:4px;">
+        <div style="width:130px;"></div>
+        <div style="flex:1;position:relative;height:14px;">
+          <div style="position:absolute;left:${(THRESHOLD/maxCap*100).toFixed(1)}%;top:0;width:2px;height:14px;background:#00c896;opacity:0.6;"></div>
+          <div style="position:absolute;left:${(THRESHOLD/maxCap*100+1).toFixed(1)}%;top:0;font-family:var(--mono);font-size:8px;color:#00c896;">INVESTOR THRESHOLD</div>
+        </div>
+      </div>
+    </div>`;
+
+  // 10-Year escalation projection table
+  html += `
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:14px;">
+      ◈ 10-YEAR ESCALATION STORY — 15% EVERY 3 YEARS (PITCH TO INTERNATIONAL INVESTORS)
+    </div>
+    <div style="overflow-x:auto;">
+      <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;">
+        <thead>
+          <tr style="background:var(--bg-3);border-bottom:1px solid var(--border);">
+            <th style="padding:8px 12px;text-align:left;color:var(--text-muted);font-size:9px;letter-spacing:0.08em;">MICRO-MARKET</th>
+            <th style="padding:8px 12px;text-align:center;color:var(--text-muted);font-size:9px;letter-spacing:0.08em;">ENTRY CAP</th>
+            <th style="padding:8px 12px;text-align:center;color:var(--text-muted);font-size:9px;letter-spacing:0.08em;">YR 3 (↑15%)</th>
+            <th style="padding:8px 12px;text-align:center;color:var(--text-muted);font-size:9px;letter-spacing:0.08em;">YR 6 (↑15%)</th>
+            <th style="padding:8px 12px;text-align:center;color:var(--text-muted);font-size:9px;letter-spacing:0.08em;">YR 9 (↑15%)</th>
+            <th style="padding:8px 12px;text-align:center;color:#f5a623;font-size:9px;letter-spacing:0.08em;">10YR AVG YIELD</th>
+            <th style="padding:8px 12px;text-align:center;color:var(--text-muted);font-size:9px;letter-spacing:0.08em;">STATUS</th>
+          </tr>
+        </thead>
+        <tbody>`;
+
+  MUMBAI_BENCHMARKS.forEach(b => {
+    const c0 = b.cap;
+    const c3 = (c0 * 1.15).toFixed(1);
+    const c6 = (c0 * 1.15 * 1.15).toFixed(1);
+    const c9 = (c0 * 1.15 * 1.15 * 1.15).toFixed(1);
+    const avg = projectedYield(c0, 10, 0.15, 3);
+    const meets = c0 >= THRESHOLD;
+    const isActive = b.note.includes("ACTIVE DEAL");
+    const rowBg = isActive ? "background:rgba(245,166,35,0.05);" : "";
+
+    html += `
+          <tr style="border-bottom:1px solid var(--border);${rowBg}" onmouseenter="this.style.background='var(--bg-3)'" onmouseleave="this.style.background='${isActive?"rgba(245,166,35,0.05)":"transparent"}'">
+            <td style="padding:8px 12px;color:${isActive?"#f5a623":"var(--text-primary)"};">${esc(b.market)}${isActive?" ★":""}</td>
+            <td style="padding:8px 12px;text-align:center;color:${meets?"#00c896":"#e8253a"};">${c0}%</td>
+            <td style="padding:8px 12px;text-align:center;color:var(--text-secondary);">${c3}%</td>
+            <td style="padding:8px 12px;text-align:center;color:var(--text-secondary);">${c6}%</td>
+            <td style="padding:8px 12px;text-align:center;color:var(--text-secondary);">${c9}%</td>
+            <td style="padding:8px 12px;text-align:center;color:#f5a623;font-weight:500;">${avg}%</td>
+            <td style="padding:8px 12px;text-align:center;">
+              ${meets
+                ? '<span style="font-size:9px;background:#00c89622;color:#00c896;padding:2px 6px;">✓ THRESHOLD</span>'
+                : avg >= THRESHOLD
+                  ? '<span style="font-size:9px;background:#f5a62322;color:#f5a623;padding:2px 6px;">↑ ESCALATION STORY</span>'
+                  : '<span style="font-size:9px;color:var(--text-muted);">PITCH REQD</span>'
+              }
+            </td>
+          </tr>`;
+  });
+
+  html += `
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Cap rate calculator -->
+    <div style="margin-top:28px;background:var(--bg-3);border:1px solid var(--border);padding:18px 20px;">
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:14px;">◈ QUICK CAP RATE CALCULATOR</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:14px;">
+        <div>
+          <label style="font-family:var(--mono);font-size:9px;color:var(--text-muted);display:block;margin-bottom:4px;">RENT (₹/sqft/month)</label>
+          <input type="number" id="calcRent" value="115" min="1"
+            style="width:100%;background:var(--bg-2);border:1px solid var(--border-2);color:var(--text-primary);font-family:var(--mono);font-size:13px;padding:6px 10px;outline:none;"
+            oninput="calcCapRate()"/>
+        </div>
+        <div>
+          <label style="font-family:var(--mono);font-size:9px;color:var(--text-muted);display:block;margin-bottom:4px;">AREA (sq ft)</label>
+          <input type="number" id="calcArea" value="40000" min="1"
+            style="width:100%;background:var(--bg-2);border:1px solid var(--border-2);color:var(--text-primary);font-family:var(--mono);font-size:13px;padding:6px 10px;outline:none;"
+            oninput="calcCapRate()"/>
+        </div>
+        <div>
+          <label style="font-family:var(--mono);font-size:9px;color:var(--text-muted);display:block;margin-bottom:4px;">PRICE (₹ Crore)</label>
+          <input type="number" id="calcPrice" value="55" min="1"
+            style="width:100%;background:var(--bg-2);border:1px solid var(--border-2);color:var(--text-primary);font-family:var(--mono);font-size:13px;padding:6px 10px;outline:none;"
+            oninput="calcCapRate()"/>
+        </div>
+        <div>
+          <label style="font-family:var(--mono);font-size:9px;color:var(--text-muted);display:block;margin-bottom:4px;">VACANCY (months/yr)</label>
+          <input type="number" id="calcVacancy" value="1" min="0" max="12"
+            style="width:100%;background:var(--bg-2);border:1px solid var(--border-2);color:var(--text-primary);font-family:var(--mono);font-size:13px;padding:6px 10px;outline:none;"
+            oninput="calcCapRate()"/>
+        </div>
+      </div>
+      <div id="calcResult" style="font-family:var(--mono);font-size:13px;color:var(--text-secondary);">—</div>
+    </div>`;
+
+  document.getElementById("caprateContent").innerHTML = html;
+  calcCapRate();
+}
+
+function calcCapRate() {
+  const rent    = parseFloat(document.getElementById("calcRent")?.value) || 0;
+  const area    = parseFloat(document.getElementById("calcArea")?.value) || 0;
+  const price   = parseFloat(document.getElementById("calcPrice")?.value) || 0;
+  const vacancy = parseFloat(document.getElementById("calcVacancy")?.value) || 1;
+
+  if (!rent || !area || !price) {
+    document.getElementById("calcResult").innerHTML = "Enter all values above";
+    return;
+  }
+
+  const effMonths = 12 - vacancy;
+  const noi = rent * area * effMonths;
+  const priceInr = price * 1e7;
+  const capRate = (noi / priceInr * 100);
+  const grossRent = (rent * area * 12 / 1e7).toFixed(2);
+  const noiCr = (noi / 1e7).toFixed(2);
+
+  // 10-yr projection
+  let curRent = rent; let totalCash = 0;
+  for (let y=1; y<=10; y++) {
+    if (y>1 && (y-1)%3===0) curRent *= 1.15;
+    totalCash += curRent * area * effMonths;
+  }
+  const termNOI = curRent * area * effMonths;
+  const termValue = termNOI / 0.065;
+  const totalReturn = totalCash + termValue;
+  const irr = ((totalReturn / priceInr) ** (1/10) - 1) * 100;
+  const meets = capRate >= 8.5;
+  const color = meets ? "#00c896" : capRate >= 7 ? "#f5a623" : "#e8253a";
+
+  document.getElementById("calcResult").innerHTML = `
+    <div style="display:flex;flex-wrap:wrap;gap:20px;align-items:center;">
+      <div>
+        <div style="font-size:9px;color:var(--text-muted);margin-bottom:2px;">ENTRY CAP RATE</div>
+        <div style="font-size:28px;font-weight:700;color:${color};">${capRate.toFixed(2)}%</div>
+        ${meets?'<div style="font-size:9px;color:#00c896;">✓ MEETS INVESTOR THRESHOLD</div>':`<div style="font-size:9px;color:#e8253a;">Gap to 8.5%: ${(8.5-capRate).toFixed(2)}%</div>`}
+      </div>
+      <div style="height:50px;width:1px;background:var(--border);"></div>
+      <div>
+        <div style="font-size:9px;color:var(--text-muted);">NOI (Annual)</div>
+        <div style="font-size:15px;color:var(--text-primary);">₹${noiCr} Cr</div>
+      </div>
+      <div>
+        <div style="font-size:9px;color:var(--text-muted);">Gross Rent</div>
+        <div style="font-size:15px;color:var(--text-primary);">₹${grossRent} Cr</div>
+      </div>
+      <div>
+        <div style="font-size:9px;color:var(--text-muted);">Est. IRR (10yr+exit)</div>
+        <div style="font-size:15px;color:#f5a623;">${irr.toFixed(1)}%</div>
+      </div>
+      <div>
+        <div style="font-size:9px;color:var(--text-muted);">Total Return (10yr)</div>
+        <div style="font-size:15px;color:var(--text-secondary);">₹${(totalCash/1e7).toFixed(1)} Cr cash</div>
+      </div>
+    </div>`;
+}
+
+function esc(s) {
+  if (!s && s !== 0) return "";
+  return String(s)
+    .replace(/&/g,"&amp;")
+    .replace(/</g,"&lt;")
+    .replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;");
+}
+
+</script>
+
+<!-- ═══ DOSSIER MODAL ═══ -->
+<div class="dossier-overlay" id="dossierOverlay" onclick="closeDossier(event)">
+  <div class="dossier-panel" id="dossierPanel">
+    <div class="dossier-header">
+      <span class="dossier-label">◈ NEXUS INTEL DOSSIER</span>
+      <button class="dossier-close" onclick="closeDossierBtn()">✕ CLOSE</button>
+    </div>
+    <div class="dossier-body" id="dossierBody">
+      <div class="dossier-loading">LOADING DOSSIER...</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

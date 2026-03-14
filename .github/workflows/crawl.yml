@@ -1,0 +1,55 @@
+name: Nexus Asia — Full Distress Radar
+
+on:
+  schedule:
+    # Core distress crawlers — every 30 minutes
+    - cron: "*/30 * * * *"
+    # Bank auction crawlers — every 4 hours (offset to avoid collision)
+    - cron: "15 */4 * * *"
+    # CRE / ARC / Legal / PE crawlers — daily at 7am IST (1:30 UTC)
+    - cron: "30 1 * * *"
+  workflow_dispatch:
+    inputs:
+      crawler_group:
+        description: "Crawler group to run"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - distress
+          - bank_auction
+          - legal
+          - cre
+          - arc
+          - market
+      dry_run:
+        description: "Dry run (no DB writes)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "true"
+          - "false"
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: Run crawler
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          GROUP="${{ github.event.inputs.crawler_group || 'distress' }}"
+          echo "Group: $GROUP | Dry run: $DRY_RUN"
+          python crawler.py --group "$GROUP" $([ "$DRY_RUN" = "true" ] && echo "--dry-run" || echo "")

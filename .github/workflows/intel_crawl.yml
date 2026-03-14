@@ -1,0 +1,21 @@
+name: Nexus Asia — Intelligence Crawler
+on:
+  schedule:
+    - cron: "0 1 * * *"   # 1 AM UTC daily (6:30 AM IST)
+  workflow_dispatch:
+
+jobs:
+  intel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.11" }
+      - run: pip install requests beautifulsoup4 lxml
+      - run: echo "PYTHONPATH=$GITHUB_WORKSPACE" >> $GITHUB_ENV
+      - name: Run intelligence crawler
+        run: python intelligence_crawler.py

@@ -1,0 +1,71 @@
+name: Nexus Asia — Enrichment & Alerts
+
+on:
+  schedule:
+    # Enrich + realtime Slack alerts every 2 hours
+    - cron: "0 */2 * * *"
+    # Daily email digest at 8am IST (2:30 UTC)
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Mode to run"
+        required: false
+        default: "both"
+        type: choice
+        options:
+          - both
+          - enrich_only
+          - notify_only
+          - digest
+
+jobs:
+  enrich-and-alert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      - name: Run Enrichment Engine
+        if: ${{ github.event.inputs.mode != 'notify_only' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: python enrichment.py --hours-back 3
+
+      - name: Send Realtime Slack Alerts
+        if: ${{ github.event.inputs.mode != 'enrich_only' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DASHBOARD_URL: ${{ secrets.DASHBOARD_URL }}
+        run: |
+          HOUR=$(date +%H)
+          # Daily digest at 2:30 UTC, realtime alerts rest of the time
+          if [ "$HOUR" = "02" ] || [ "${{ github.event.inputs.mode }}" = "digest" ]; then
+            python notifier.py --mode digest
+          else
+            python notifier.py --mode realtime
+          fi
+
+      - name: Send Email Digest (daily only)
+        if: ${{ github.event.inputs.mode == 'digest' || github.event_name == 'schedule' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          DASHBOARD_URL: ${{ secrets.DASHBOARD_URL }}
+        run: python notifier.py --mode digest

@@ -1,0 +1,108 @@
+name: Nexus Asia Distress Radar — Crawler
+
+on:
+  # ─────────────────────────────────────────────
+  # Run automatically every 30 minutes
+  # ─────────────────────────────────────────────
+  schedule:
+    - cron: "*/30 * * * *"
+
+  # ─────────────────────────────────────────────
+  # Allow manual trigger from GitHub Actions UI
+  # ─────────────────────────────────────────────
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (no DB writes)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "true"
+          - "false"
+      source:
+        description: "Run single crawler (partial name, e.g. 'ibbi')"
+        required: false
+        default: ""
+
+jobs:
+  crawl:
+    name: Run Distress Signal Crawlers
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+
+    steps:
+      # ─────────────────────────────────────────────
+      # 1. Checkout repository
+      # ─────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ─────────────────────────────────────────────
+      # 2. Set up Python
+      # ─────────────────────────────────────────────
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      # ─────────────────────────────────────────────
+      # 3. Install dependencies
+      # ─────────────────────────────────────────────
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # ─────────────────────────────────────────────
+      # 4. Validate environment variables
+      # ─────────────────────────────────────────────
+      - name: Validate secrets
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then
+            echo "ERROR: SUPABASE_URL secret is not set"
+            exit 1
+          fi
+          if [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "ERROR: SUPABASE_ANON_KEY secret is not set"
+            exit 1
+          fi
+          echo "✓ Secrets validated"
+
+      # ─────────────────────────────────────────────
+      # 5. Run crawler (scheduled run)
+      # ─────────────────────────────────────────────
+      - name: Run crawler (scheduled)
+        if: github.event_name == 'schedule'
+        run: python crawler.py
+
+      # ─────────────────────────────────────────────
+      # 6. Run crawler (manual trigger)
+      # ─────────────────────────────────────────────
+      - name: Run crawler (manual)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          ARGS=""
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          if [ -n "${{ github.event.inputs.source }}" ]; then
+            ARGS="$ARGS --source ${{ github.event.inputs.source }}"
+          fi
+          python crawler.py $ARGS
+
+      # ─────────────────────────────────────────────
+      # 7. Upload logs on failure
+      # ─────────────────────────────────────────────
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: crawler-failure-logs-${{ github.run_id }}
+          path: "*.log"
+          retention-days: 7
