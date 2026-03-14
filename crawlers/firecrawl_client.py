@@ -388,11 +388,23 @@ class FirecrawlSession:
         if self._firecrawl_available and _needs_firecrawl(url):
             logger.info(f"  → Firecrawl: {url[:70]}")
             domain = _get_domain(url)
-            wait = 4000 if any(d in domain for d in [
+            # Property portals are React SPAs — need longer JS render wait
+            SLOW_DOMAINS = [
+                # Govt portals — slow to load
                 "drt.gov.in", "nclt.gov.in", "ibbi.gov.in", "mca.gov.in",
+                # ARC sites — heavy JS
                 "narcl.co.in", "edelweissarc.com", "arcil.com",
                 "kotakarc.com", "jmfarc.com", "phoenixarc.co.in",
-            ]) else self.firecrawl_wait_ms
+                # Property portals — React SPAs need full render
+                "magicbricks.com", "99acres.com", "squareyards.com",
+                "anarock.com", "jll.co.in", "cbre.co.in",
+                "colliers.com", "knightfrank.co.in",
+                # Bank portals — slow govt infrastructure
+                "sbi.co.in", "pnbindia.in", "bankofbaroda.in",
+                "unionbankofindia.co.in", "canarabank.com",
+                "centralbankofindia.co.in", "iob.in",
+            ]
+            wait = 5000 if any(d in domain for d in SLOW_DOMAINS) else self.firecrawl_wait_ms
 
             resp = firecrawl_scrape(url, wait_ms=wait)
             # Return None for failures so safe_get() handles it cleanly
