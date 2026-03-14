@@ -6,6 +6,7 @@ Crawls bank auction portals for SARFAESI notices and e-auction listings.
 import logging
 import re
 import requests
+from .firecrawl_client import FirecrawlSession
 from bs4 import BeautifulSoup
 from .base import BaseCrawler, DistressEvent
 
@@ -25,7 +26,7 @@ class IBAPIAuctionCrawler(BaseCrawler):
 
     def crawl(self) -> list[DistressEvent]:
         events = []
-        session = requests.Session()
+        session = FirecrawlSession()
 
         try:
             resp = self.safe_get(session, "https://ibapi.in")
@@ -88,7 +89,7 @@ class SBIAuctionCrawler(BaseCrawler):
 
     def crawl(self) -> list[DistressEvent]:
         events = []
-        session = requests.Session()
+        session = FirecrawlSession()
 
         try:
             url = "https://sbi.co.in/web/sbi-in-the-news/auction-notices"
