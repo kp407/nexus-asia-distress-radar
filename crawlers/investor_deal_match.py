@@ -24,6 +24,7 @@ import re
 import time
 import logging
 import requests
+from .firecrawl_client import FirecrawlSession
 from bs4 import BeautifulSoup
 from urllib.parse import quote
 from .base import BaseCrawler, DistressEvent
@@ -145,7 +146,7 @@ class PEFundActivityCrawler(BaseCrawler):
 
     def crawl(self) -> list[DistressEvent]:
         events = []
-        session = requests.Session()
+        session = FirecrawlSession()
 
         # 1. PE/VC news RSS feeds
         for source_name, feed_url in self.PE_FEEDS:
@@ -347,7 +348,7 @@ class StockMarketDistressSignalCrawler(BaseCrawler):
 
     def crawl(self) -> list[DistressEvent]:
         events = []
-        session = requests.Session()
+        session = FirecrawlSession()
 
         # 1. Market news RSS
         for source_name, feed_url in self.MARKET_FEEDS:
