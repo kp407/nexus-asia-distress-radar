@@ -5,6 +5,7 @@ Crawls IBBI (Insolvency & Bankruptcy Board of India) for CIRP, liquidation order
 
 import logging
 import requests
+from .firecrawl_client import FirecrawlSession
 from bs4 import BeautifulSoup
 from .base import BaseCrawler, DistressEvent
 
@@ -25,7 +26,7 @@ class IBBICrawler(BaseCrawler):
 
     def crawl(self) -> list[DistressEvent]:
         events = []
-        session = requests.Session()
+        session = FirecrawlSession()
 
         for url in self.CRAWL_URLS:
             try:
