@@ -60,13 +60,42 @@ def _dbh(write=False):
         "Prefer":        "return=minimal",
     }
 
+# All valid signal_category values — must match Supabase CHECK constraint
+_VALID_CATEGORIES = {
+    'insolvency', 'auction', 'restructuring', 'default', 'legal',
+    'regulatory', 'general', 'sarfaesi', 'creditor_action', 'rbi_action',
+    'distressed_asset', 'cirp', 'liquidation', 'pre_leased_asset',
+    'cre_vacancy', 'arc_portfolio', 'pe_activity', 'market_stress',
+    'financial_media', 'nclt', 'ibbi', 'bankruptcy', 'debt_resolution',
+    'asset_auction', 'other',
+}
+
+def _sanitise_event(row: dict) -> dict:
+    """Ensure signal_category is always a valid DB value."""
+    row = dict(row)
+    cat = row.get('signal_category', 'other')
+    if cat not in _VALID_CATEGORIES:
+        # Map common crawler values that aren't in constraint
+        _CAT_MAP = {
+            'pre_leased_cre':    'pre_leased_asset',
+            'cre':               'pre_leased_asset',
+            'arc':               'arc_portfolio',
+            'pe_fund':           'pe_activity',
+            'market_distress':   'market_stress',
+            'financial media':   'financial_media',
+        }
+        row['signal_category'] = _CAT_MAP.get(cat, 'other')
+    return row
+
 def db_insert(rows):
     if not SUPABASE_URL: return False
     try:
+        payload = rows if isinstance(rows, list) else [rows]
+        payload = [_sanitise_event(r) for r in payload]
         r = requests.post(
             f"{SUPABASE_URL}/rest/v1/distress_events",
             headers=_dbh(write=True),
-            json=rows if isinstance(rows, list) else [rows],
+            json=payload,
             timeout=15,
         )
         if r.status_code not in (200, 201):
