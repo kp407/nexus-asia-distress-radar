@@ -5,6 +5,7 @@ Crawls MCA and NCLT for regulatory distress signals.
 
 import logging
 import requests
+from .firecrawl_client import FirecrawlSession
 from bs4 import BeautifulSoup
 from .base import BaseCrawler, DistressEvent
 
@@ -23,7 +24,7 @@ class NCLTCrawler(BaseCrawler):
 
     def crawl(self) -> list[DistressEvent]:
         events = []
-        session = requests.Session()
+        session = FirecrawlSession()
 
         for url in self.CRAWL_URLS:
             try:
@@ -41,7 +42,7 @@ class NCLTCrawler(BaseCrawler):
                     keywords = self.detect_keywords(text)
                     if not keywords:
                         # All NCLT content is inherently distress-related
-                        keywords = [("nclt", "cirp")]
+                        keywords = [("nclt", "nclt")]
 
                     companies = self.extract_company_names(text)
                     company_name = companies[0] if companies else "NCLT Matter"
@@ -85,7 +86,7 @@ class MCACrawler(BaseCrawler):
 
     def crawl(self) -> list[DistressEvent]:
         events = []
-        session = requests.Session()
+        session = FirecrawlSession()
 
         for url in self.CRAWL_URLS:
             try:
