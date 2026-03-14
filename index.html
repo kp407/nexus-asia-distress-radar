@@ -2507,6 +2507,7 @@ let allProfiles = [];
 let allBuyers   = [];
 
 function switchTab(tab, btn) {
+  const wasAlreadyActive = currentTab === tab;
   currentTab = tab;
   document.querySelectorAll(".nav-tab").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
@@ -2522,7 +2523,8 @@ function switchTab(tab, btn) {
   if (tab === "buyers"   && allBuyers.length   === 0) loadBuyers();
   if (tab === "pipeline" && !pipelineLoaded)           loadPipeline();
   if (tab === "hotdeals" && !hotDealsLoaded)           loadHotDeals();
-  if (tab === "caprate"  && !capRateLoaded)            loadCapRate();
+  // Force-refresh cap rate if clicking the tab again while already on it
+  if (tab === "caprate") loadCapRate(wasAlreadyActive);
 }
 
 // ═══════════════════════════════════════════════
@@ -3009,7 +3011,13 @@ const MUMBAI_BENCHMARKS = [
   { market:"Vashi",       cls:"Grade A", cap:8.05, rent:82,  price_psf:11200, note:"✓ Meets threshold" },
 ];
 
-async function loadCapRate() {
+async function loadCapRate(forceRefresh = false) {
+  if (forceRefresh) {
+    capRateLoaded = false;
+    capRateData   = [];
+    window._capRateLatest  = {};
+    window._capRateHistory = {};
+  }
   try {
     capRateData = await supabaseGet("cap_rate_snapshots", {
       order: "snapshot_date.asc",
