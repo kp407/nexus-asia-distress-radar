@@ -1,138 +1,41 @@
 """
-crawler.py — Nexus Asia Distress Radar (Fast & Reliable Edition)
+crawler.py — Nexus Asia Distress Radar
 ═══════════════════════════════════════════════════════════════════
-SOURCES THAT ACTUALLY WORK FROM GITHUB ACTIONS:
+USAGE:
+  python crawler.py                        # distress group (default)
+  python crawler.py --group distress       # LiveLaw + Google News + Media RSS
+  python crawler.py --group bank_auction   # bank portals only
+  python crawler.py --group legal          # DRT + SARFAESI
+  python crawler.py --group cre            # pre-leased assets
+  python crawler.py --group arc            # NARCL + ARC
+  python crawler.py --group market         # PE + market signals
+  python crawler.py --group all            # everything
+  python crawler.py --dry-run              # no DB writes
 
-PRIMARY (Authentic legal intelligence):
-  1. LiveLaw          — Real-time NCLT/NCLAT order reporting, case numbers, outcomes
+INTELLIGENCE PIPELINE (--group distress or --group all):
+  1. LiveLaw          — Real-time NCLT/NCLAT order reporting
   2. Bar & Bench      — NCLT/NCLAT/HC insolvency coverage
-  3. SCC Online Blog  — Full NCLT judgments and summaries
-  4. Verdictum        — IBC case tracker
+  3. RBI              — Enforcement actions, wilful defaulters
+  4. Google News RSS  — 25 targeted IBBI/NCLT/distress searches
+  5. Financial Media  — ET, BS, Mint, Moneycontrol, BusinessLine
 
-SECONDARY (Volume + breadth):
-  5. Google News RSS  — 25 targeted IBBI/NCLT/distress searches
-  6. Financial Media  — ET, BS, Mint, Moneycontrol, BusinessLine, FE
-  7. RBI Notices      — RBI press releases (wilful defaulters, enforcement)
-
-REMOVED (all block GitHub Actions IPs):
-  ✗ NCLT cause list PDFs    — Cloudflare blocks datacenter IPs
-  ✗ IBBI Excel downloads    — Same
-  ✗ Indian Kanoon           — Rate limits + blocks
-  ✗ MCA direct              — Blocks
+REMOVED (block GitHub Actions IPs):
+  ✗ NCLT cause list PDFs  — Cloudflare blocks datacenter IPs
+  ✗ IBBI Excel downloads  — Same
+  ✗ Indian Kanoon         — Rate limits + blocks
+  ✗ MCA direct            — Blocks
 """
 
-import os, sys, uuid, logging, time, re
+import os, sys, uuid, logging, time, re, argparse
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone, date
-from urllib.parse import urlparse, quote, urljoin
+from urllib.parse import quote
 import requests
 from bs4 import BeautifulSoup
 
 # ═══════════════════════════════════════════════
-# ORDER DATE EXTRACTOR
-# Extracts the actual court/listing/order date
-# from article text — not the crawl date
+# LOGGING
 # ═══════════════════════════════════════════════
-
-_MONTHS = {
-    'jan':1,'feb':2,'mar':3,'apr':4,'may':5,'jun':6,
-    'jul':7,'aug':8,'sep':9,'oct':10,'nov':11,'dec':12,
-    'january':1,'february':2,'march':3,'april':4,'june':6,
-    'july':7,'august':8,'september':9,'october':10,
-    'november':11,'december':12,
-}
-
-# Contextual keywords that appear right before a date
-_DATE_CONTEXT = [
-    'heard on', 'hearing on', 'hearing date',
-    'order dated', 'order date', 'date of order',
-    'decided on', 'listed on', 'listed for',
-    'matter listed', 'case listed',
-    'pronounced on', 'reserved on',
-    'judgment dated', 'judgement dated',
-    'bench heard', 'court held',
-    'pub:', 'pubdate', 'published on',
-    'date:', '| date',
-]
-
-# Date regex patterns — most specific first
-_DATE_PATS = [
-    # ISO: 2026-03-11
-    (r'\b(20\d{2})[-/](0?[1-9]|1[0-2])[-/](0?[1-9]|[12]\d|3[01])\b', 'ymd'),
-    # DD.MM.YYYY  DD/MM/YYYY  DD-MM-YYYY
-    (r'\b(0?[1-9]|[12]\d|3[01])[.\-/](0?[1-9]|1[0-2])[.\-/](20\d{2})\b', 'dmy'),
-    # DD Month YYYY  (11 March 2026, 4th March 2026)
-    (r'\b(0?[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?\s+'
-     r'(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|'
-     r'jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)'
-     r'\s+(20\d{2})\b', 'dmy_str'),
-    # Month DD, YYYY  (March 11, 2026)
-    (r'\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|'
-     r'jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)'
-     r'\s+(0?[1-9]|[12]\d|3[01]),?\s+(20\d{2})\b', 'mdy_str'),
-]
-
-def _parse_date_match(m, fmt):
-    try:
-        if fmt == 'ymd':
-            return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
-        if fmt == 'dmy':
-            return date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
-        if fmt == 'dmy_str':
-            mon = _MONTHS.get(m.group(2).lower()[:3])
-            if mon: return date(int(m.group(3)), mon, int(m.group(1)))
-        if fmt == 'mdy_str':
-            mon = _MONTHS.get(m.group(1).lower()[:3])
-            if mon: return date(int(m.group(3)), mon, int(m.group(2)))
-    except (ValueError, AttributeError):
-        pass
-    return None
-
-def extract_order_date(title, snippet="", pub_str=""):
-    """
-    Returns the actual court/listing/order date as ISO string (YYYY-MM-DD),
-    or None if not found.
-
-    Priority:
-      1. Date near a context keyword in title/snippet (most reliable)
-      2. Any date in title
-      3. pubDate from RSS feed (proxy — usually same day as order for legal media)
-    """
-    combined = f"{title} {snippet}"
-    tl = combined.lower()
-
-    # 1. Look for date near context keywords
-    for kw in _DATE_CONTEXT:
-        idx = tl.find(kw)
-        if idx < 0:
-            continue
-        window = combined[idx: idx + 80]
-        for pat, fmt in _DATE_PATS:
-            m = re.search(pat, window, re.IGNORECASE)
-            if m:
-                d = _parse_date_match(m, fmt)
-                if d and date(2015, 1, 1) <= d <= date.today():
-                    return d.isoformat()
-
-    # 2. Any date in title (titles often start with date)
-    for pat, fmt in _DATE_PATS:
-        m = re.search(pat, title, re.IGNORECASE)
-        if m:
-            d = _parse_date_match(m, fmt)
-            if d and date(2015, 1, 1) <= d <= date.today():
-                return d.isoformat()
-
-    # 3. RSS pubDate as fallback proxy
-    if pub_str:
-        for pat, fmt in _DATE_PATS:
-            m = re.search(pat, pub_str, re.IGNORECASE)
-            if m:
-                d = _parse_date_match(m, fmt)
-                if d and date(2015, 1, 1) <= d <= date.today():
-                    return d.isoformat()
-
-    return None
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
@@ -224,7 +127,78 @@ def db_upsert_company(name):
         pass
 
 # ═══════════════════════════════════════════════
-# KEYWORDS — full IBC/SARFAESI vocabulary
+# ORDER DATE EXTRACTOR
+# ═══════════════════════════════════════════════
+_MONTHS = {
+    'jan':1,'feb':2,'mar':3,'apr':4,'may':5,'jun':6,
+    'jul':7,'aug':8,'sep':9,'oct':10,'nov':11,'dec':12,
+    'january':1,'february':2,'march':3,'april':4,'june':6,
+    'july':7,'august':8,'september':9,'october':10,
+    'november':11,'december':12,
+}
+_DATE_CONTEXT = [
+    'heard on','hearing on','hearing date','order dated','order date',
+    'date of order','decided on','listed on','listed for',
+    'matter listed','case listed','pronounced on','reserved on',
+    'judgment dated','judgement dated','bench heard','court held',
+    'pub:','pubdate','published on','date:','| date',
+]
+_DATE_PATS = [
+    (r'\b(20\d{2})[-/](0?[1-9]|1[0-2])[-/](0?[1-9]|[12]\d|3[01])\b', 'ymd'),
+    (r'\b(0?[1-9]|[12]\d|3[01])[.\-/](0?[1-9]|1[0-2])[.\-/](20\d{2})\b', 'dmy'),
+    (r'\b(0?[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?\s+'
+     r'(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|'
+     r'jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)'
+     r'\s+(20\d{2})\b', 'dmy_str'),
+    (r'\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|'
+     r'jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)'
+     r'\s+(0?[1-9]|[12]\d|3[01]),?\s+(20\d{2})\b', 'mdy_str'),
+]
+
+def _parse_date_match(m, fmt):
+    try:
+        if fmt == 'ymd':    return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        if fmt == 'dmy':    return date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+        if fmt == 'dmy_str':
+            mon = _MONTHS.get(m.group(2).lower()[:3])
+            if mon: return date(int(m.group(3)), mon, int(m.group(1)))
+        if fmt == 'mdy_str':
+            mon = _MONTHS.get(m.group(1).lower()[:3])
+            if mon: return date(int(m.group(3)), mon, int(m.group(2)))
+    except (ValueError, AttributeError):
+        pass
+    return None
+
+def extract_order_date(title, snippet="", pub_str=""):
+    combined = f"{title} {snippet}"
+    tl = combined.lower()
+    for kw in _DATE_CONTEXT:
+        idx = tl.find(kw)
+        if idx < 0: continue
+        window = combined[idx: idx + 80]
+        for pat, fmt in _DATE_PATS:
+            m = re.search(pat, window, re.IGNORECASE)
+            if m:
+                d = _parse_date_match(m, fmt)
+                if d and date(2015, 1, 1) <= d <= date.today():
+                    return d.isoformat()
+    for pat, fmt in _DATE_PATS:
+        m = re.search(pat, title, re.IGNORECASE)
+        if m:
+            d = _parse_date_match(m, fmt)
+            if d and date(2015, 1, 1) <= d <= date.today():
+                return d.isoformat()
+    if pub_str:
+        for pat, fmt in _DATE_PATS:
+            m = re.search(pat, pub_str, re.IGNORECASE)
+            if m:
+                d = _parse_date_match(m, fmt)
+                if d and date(2015, 1, 1) <= d <= date.today():
+                    return d.isoformat()
+    return None
+
+# ═══════════════════════════════════════════════
+# KEYWORDS
 # ═══════════════════════════════════════════════
 KEYWORDS = {
     "cirp": [
@@ -324,14 +298,11 @@ KEYWORDS = {
 }
 
 SEVERITY = {
-    "liquidation": "critical", "cirp": "critical",
-    "fraud": "critical",
-    "nclt": "high", "sarfaesi": "high",
-    "asset_auction": "high", "insolvency": "high",
+    "liquidation": "critical", "cirp": "critical", "fraud": "critical",
+    "nclt": "high", "sarfaesi": "high", "asset_auction": "high", "insolvency": "high",
     "rbi_action": "high",
     "default": "medium", "distressed_asset": "medium",
-    "restructuring": "medium", "creditor_action": "medium",
-    "ibbi": "medium",
+    "restructuring": "medium", "creditor_action": "medium", "ibbi": "medium",
 }
 
 def detect_keywords(text):
@@ -412,11 +383,9 @@ def extract_company(text):
         if c.lower() in text.lower():
             return c
     m2 = ACTION_RE.search(text)
-    if m2:
-        return m2.group(1).strip()
+    if m2: return m2.group(1).strip()
     m3 = QUOTE_RE.search(text)
-    if m3:
-        return m3.group(1).strip()
+    if m3: return m3.group(1).strip()
     return "Unknown"
 
 # ═══════════════════════════════════════════════
@@ -464,7 +433,7 @@ def make_event(company, kw, cat, source, url,
         "snippet":         snippet[:900],
         "detected_at":     datetime.now(timezone.utc).isoformat(),
         "published_at":    pub,
-        "order_date":      order_date,   # actual court/listing/order date
+        "order_date":      order_date,
         "severity":        SEVERITY.get(cat, "medium"),
         "is_duplicate":    False,
         "metadata":        meta or {},
@@ -482,7 +451,7 @@ def parse_rss(xml_text, fallback_url=""):
             l  = (item.findtext("link")  or fallback_url).strip()
             d  = item.findtext("pubDate") or ""
             ds_raw = item.findtext("description") or ""
-            ds = BeautifulSoup(ds_raw, "html.parser").get_text(separator=" ", strip=True)
+            ds = BeautifulSoup(ds_raw, "html.parser").get_text(separator=" ", strip=True) if len(ds_raw) > 20 else ds_raw
             if t:
                 items.append((t, l, d, ds))
         if not items:
@@ -526,18 +495,14 @@ def events_from_feed(items, source_name, feed_url):
     return events
 
 # ═══════════════════════════════════════════════
-# SOURCE 1: LIVELAW — Best NCLT tracker in India
-# Reports every significant NCLT/NCLAT order same day
-# with case number, bench, parties, and full summary
+# SOURCE 1: LIVELAW
 # ═══════════════════════════════════════════════
-
-LIVELAW_SECTIONS = [
-    ("LiveLaw",  "https://www.livelaw.in/rss/"),
-    ("LiveLaw",  "https://www.livelaw.in/top-stories/rss/"),
-    ("LiveLaw",  "https://www.livelaw.in/news-updates/rss/"),
+LIVELAW_RSS = [
+    ("LiveLaw", "https://www.livelaw.in/feed/"),           # correct current URL
+    ("LiveLaw", "https://www.livelaw.in/rss/"),
+    ("LiveLaw", "https://www.livelaw.in/top-stories/rss/"),
 ]
-
-LIVELAW_SEARCH_URLS = [
+LIVELAW_SEARCH = [
     ("LiveLaw / NCLT",  "https://www.livelaw.in/?s=NCLT+insolvency"),
     ("LiveLaw / NCLT",  "https://www.livelaw.in/?s=CIRP"),
     ("LiveLaw / NCLT",  "https://www.livelaw.in/?s=liquidation+NCLT"),
@@ -549,95 +514,69 @@ def crawl_livelaw(session):
     events = []
     logger.info("  ── LiveLaw (NCLT/NCLAT primary tracker)")
 
-    # RSS feeds first
-    for source, url in LIVELAW_SECTIONS:
-        r = safe_get(session, url, timeout=20)
+    for source, url in LIVELAW_RSS:
+        r = safe_get(session, url, timeout=15)
         if not r:
             continue
         items = parse_rss(r.text, url)
-        # Filter to IBC-relevant items
-        ibc_items = [
-            i for i in items
-            if detect_keywords(f"{i[0]} {i[3]}")
-        ]
+        ibc_items = [i for i in items if detect_keywords(f"{i[0]} {i[3]}")]
         ev = events_from_feed(ibc_items, source, url)
         events.extend(ev)
         logger.info(f"  LiveLaw RSS: {len(items)} items → {len(ev)} IBC signals")
+        if ev:
+            break   # got data from this feed, skip fallback URLs
         time.sleep(1)
 
-    # HTML search pages for targeted NCLT/IBBI queries
-    for source, url in LIVELAW_SEARCH_URLS:
-        r = safe_get(session, url, timeout=20)
+    for source, url in LIVELAW_SEARCH:
+        r = safe_get(session, url, timeout=15)
         if not r:
             continue
         soup = BeautifulSoup(r.text, "html.parser")
-
-        # LiveLaw article cards
         articles = (
             soup.select("article.jeg_post") or
             soup.select(".jeg_post") or
             soup.select("article") or
             soup.select(".post-item")
         )
-
         for art in articles[:20]:
             title_el = art.find(["h2", "h3", "h4"])
             link_el  = art.find("a", href=True)
             desc_el  = art.find(["p", ".jeg_post_excerpt"])
-
-            if not title_el:
-                continue
-
+            if not title_el: continue
             title   = title_el.get_text(strip=True)
             link    = link_el["href"] if link_el else url
             snippet = desc_el.get_text(strip=True) if desc_el else ""
-
             if not link.startswith("http"):
                 link = "https://www.livelaw.in" + link
-
-            full_text = f"{title} {snippet}"
-            kws = detect_keywords(full_text)
-            if not kws:
-                continue
-
+            kws = detect_keywords(f"{title} {snippet}")
+            if not kws: continue
             company = extract_company(title)
             kw, cat = kws[0]
-
-            # Extract case number if present
             case_match = re.search(
                 r'(?:IB|CP\(IB\)|MA|CA|IA)[\s\/\-]\d+[\s\/\-]\w+[\s\/\-]\d{4}',
-                full_text, re.IGNORECASE
+                f"{title} {snippet}", re.IGNORECASE
             )
-            case_num = case_match.group(0) if case_match else ""
-
             events.append(make_event(
                 company=company, kw=kw, cat=cat,
                 source=source, url=link,
                 headline=title, snippet=snippet,
-                meta={
-                    "source_type": "legal_media",
-                    "case_number": case_num,
-                    "authentic_coverage": True,
-                },
+                meta={"source_type": "legal_media",
+                      "case_number": case_match.group(0) if case_match else "",
+                      "authentic_coverage": True},
             ))
-
         logger.info(f"  {source} [{url.split('=')[-1]}]: {len(articles)} articles scanned")
         time.sleep(1.5)
 
     logger.info(f"  LiveLaw total: {len(events)} events")
     return events
 
-
 # ═══════════════════════════════════════════════
 # SOURCE 2: BAR & BENCH
-# Strong NCLT/NCLAT/HC insolvency coverage
 # ═══════════════════════════════════════════════
-
-BAR_BENCH_FEEDS = [
+BAR_BENCH_RSS = [
     ("Bar & Bench", "https://www.barandbench.com/feed"),
     ("Bar & Bench", "https://www.barandbench.com/feed/columns"),
 ]
-
 BAR_BENCH_SEARCH = [
     ("Bar & Bench / NCLT",  "https://www.barandbench.com/?s=NCLT+insolvency"),
     ("Bar & Bench / IBBI",  "https://www.barandbench.com/?s=IBBI"),
@@ -648,44 +587,32 @@ BAR_BENCH_SEARCH = [
 def crawl_bar_bench(session):
     events = []
     logger.info("  ── Bar & Bench (NCLT/NCLAT/HC insolvency)")
-
-    for source, url in BAR_BENCH_FEEDS:
-        r = safe_get(session, url, timeout=20)
-        if not r:
-            continue
+    for source, url in BAR_BENCH_RSS:
+        r = safe_get(session, url, timeout=15)
+        if not r: continue
         items = parse_rss(r.text, url)
         ibc_items = [i for i in items if detect_keywords(f"{i[0]} {i[3]}")]
         ev = events_from_feed(ibc_items, source, url)
         events.extend(ev)
         logger.info(f"  Bar & Bench RSS: {len(items)} items → {len(ev)} IBC signals")
         time.sleep(1)
-
     for source, url in BAR_BENCH_SEARCH:
-        r = safe_get(session, url, timeout=20)
-        if not r:
-            continue
+        r = safe_get(session, url, timeout=15)
+        if not r: continue
         soup = BeautifulSoup(r.text, "html.parser")
         articles = soup.select("article, .post, .story-card")
-
         for art in articles[:15]:
             title_el = art.find(["h2", "h3"])
             link_el  = art.find("a", href=True)
             desc_el  = art.find("p")
-
-            if not title_el:
-                continue
-
+            if not title_el: continue
             title   = title_el.get_text(strip=True)
             link    = link_el["href"] if link_el else url
             snippet = desc_el.get_text(strip=True) if desc_el else ""
-
             if not link.startswith("http"):
                 link = "https://www.barandbench.com" + link
-
             kws = detect_keywords(f"{title} {snippet}")
-            if not kws:
-                continue
-
+            if not kws: continue
             company = extract_company(title)
             kw, cat = kws[0]
             events.append(make_event(
@@ -694,84 +621,43 @@ def crawl_bar_bench(session):
                 headline=title, snippet=snippet,
                 meta={"source_type": "legal_media"},
             ))
-
         logger.info(f"  {source}: {len(articles)} articles scanned")
         time.sleep(1.5)
-
     logger.info(f"  Bar & Bench total: {len(events)} events")
     return events
 
-
 # ═══════════════════════════════════════════════
-# SOURCE 3: RBI PRESS RELEASES
-# Wilful defaulters, bank enforcement, PCA framework
-# RBI site works fine from GitHub Actions
+# SOURCE 3: RBI
+# RSS returns 418 (bot block) — skip RSS, use HTML only
 # ═══════════════════════════════════════════════
-
-RBI_URLS = [
+RBI_HTML_URLS = [
     "https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx",
     "https://www.rbi.org.in/Scripts/BS_EnforcementDisplay.aspx",
-    "https://rbi.org.in/rss/RBIEnforcementActions.xml",
-    "https://rbi.org.in/rss/RBIPressReleases.xml",
 ]
 
 def crawl_rbi(session):
     events = []
     logger.info("  ── RBI (enforcement actions, wilful defaulters)")
-
-    for url in RBI_URLS:
+    for url in RBI_HTML_URLS:
         r = safe_get(session, url, timeout=20)
-        if not r:
-            continue
-
-        # Try RSS first
-        if "rss" in url.lower() or r.text.strip().startswith("<"):
-            try:
-                items = parse_rss(r.text, url)
-                if items:
-                    ev = events_from_feed(items, "RBI", url)
-                    if not ev:
-                        # All RBI content is distress-related
-                        for title, link, pub, desc in items[:30]:
-                            company = extract_company(title)
-                            events.append(make_event(
-                                company=company,
-                                kw="rbi enforcement action", cat="rbi_action",
-                                source="RBI", url=link,
-                                headline=title, snippet=desc[:400],
-                                pub=pub[:50] if pub else None,
-                                meta={"source_type": "rbi_official"},
-                            ))
-                    else:
-                        events.extend(ev)
-                    logger.info(f"  RBI RSS {url[-30:]}: {len(items)} items")
-                    continue
-            except:
-                pass
-
-        # HTML scraping
+        if not r: continue
         soup = BeautifulSoup(r.text, "html.parser")
         rows = soup.select("table tr") or soup.select(".tablebg tr")
-
+        count = 0
         for row in rows[:40]:
             text = row.get_text(separator=" ", strip=True)
-            if len(text) < 20:
-                continue
-
+            if len(text) < 20: continue
             kws = detect_keywords(text)
             if not kws:
-                # RBI enforcement page — all content is relevant
                 if "enforcement" in url.lower():
                     kws = [("rbi enforcement action", "rbi_action")]
                 else:
                     continue
-
             link_el = row.find("a", href=True)
             link = url
             if link_el:
                 href = link_el["href"]
                 link = href if href.startswith("http") else f"https://www.rbi.org.in{href}"
-
             company = extract_company(text)
             kw, cat = kws[0]
             events.append(make_event(
@@ -780,73 +666,56 @@ def crawl_rbi(session):
                 headline=text[:300], snippet=text[:600],
                 meta={"source_type": "rbi_official", "authentic": True},
             ))
-
-        logger.info(f"  RBI {url[-35:]}: {len(rows)} rows")
+            count += 1
+        logger.info(f"  RBI {url[-35:]}: {len(rows)} rows → {count} events")
         time.sleep(1)
-
     logger.info(f"  RBI total: {len(events)} events")
     return events
 
-
 # ═══════════════════════════════════════════════
 # SOURCE 4: GOOGLE NEWS RSS
-# 25 targeted searches — proxy for IBBI/NCLT content
 # ═══════════════════════════════════════════════
-
 GNEWS_QUERIES = [
-    # IBBI specific
-    ("IBBI",         "IBBI insolvency order India 2024"),
-    ("IBBI",         "IBBI circular insolvency professional India"),
-    ("IBBI",         "IBBI show cause notice order India"),
-    ("IBBI",         "IBBI disciplinary committee order India"),
-    # NCLT specific
-    ("NCLT",         "NCLT CIRP admitted India 2024"),
-    ("NCLT",         "NCLT liquidation order India"),
-    ("NCLT",         "NCLT resolution plan approved India"),
-    ("NCLT",         "NCLT section 7 petition admitted"),
-    ("NCLT",         "NCLT section 9 operational creditor India"),
-    ("NCLAT",        "NCLAT insolvency appeal India"),
-    ("NCLAT",        "NCLAT upholds liquidation India"),
-    # SARFAESI / Auctions
-    ("SARFAESI",     "SARFAESI possession notice India bank 2024"),
-    ("Auction",      "bank auction NPA property India 2024"),
-    ("Auction",      "e-auction stressed asset India bank"),
-    # Defaults / NPA
-    ("Default",      "wilful defaulter India RBI 2024"),
-    ("Default",      "NPA account India bank stressed"),
-    ("Default",      "loan default NCLT IBC India"),
-    # Restructuring
-    ("Restructuring","one time settlement OTS India bank 2024"),
-    ("Restructuring","debt restructuring RBI India framework"),
-    # Legal actions
-    ("Legal",        "DRT debt recovery tribunal order India"),
-    ("Legal",        "winding up petition High Court India"),
-    # Fraud
-    ("Fraud",        "forensic audit India company fund diversion"),
-    ("Fraud",        "look out circular India debtor"),
-    # RBI
-    ("RBI",          "RBI cancels bank licence India 2024"),
-    ("RBI",          "RBI prompt corrective action bank India"),
+    ("IBBI",          "IBBI insolvency order India 2024"),
+    ("IBBI",          "IBBI circular insolvency professional India"),
+    ("IBBI",          "IBBI show cause notice order India"),
+    ("IBBI",          "IBBI disciplinary committee order India"),
+    ("NCLT",          "NCLT CIRP admitted India 2024"),
+    ("NCLT",          "NCLT liquidation order India"),
+    ("NCLT",          "NCLT resolution plan approved India"),
+    ("NCLT",          "NCLT section 7 petition admitted"),
+    ("NCLT",          "NCLT section 9 operational creditor India"),
+    ("NCLAT",         "NCLAT insolvency appeal India"),
+    ("NCLAT",         "NCLAT upholds liquidation India"),
+    ("SARFAESI",      "SARFAESI possession notice India bank 2024"),
+    ("Auction",       "bank auction NPA property India 2024"),
+    ("Auction",       "e-auction stressed asset India bank"),
+    ("Default",       "wilful defaulter India RBI 2024"),
+    ("Default",       "NPA account India bank stressed"),
+    ("Default",       "loan default NCLT IBC India"),
+    ("Restructuring", "one time settlement OTS India bank 2024"),
+    ("Restructuring", "debt restructuring RBI India framework"),
+    ("Legal",         "DRT debt recovery tribunal order India"),
+    ("Legal",         "winding up petition High Court India"),
+    ("Fraud",         "forensic audit India company fund diversion"),
+    ("Fraud",         "look out circular India debtor"),
+    ("RBI",           "RBI cancels bank licence India 2024"),
+    ("RBI",           "RBI prompt corrective action bank India"),
 ]
-
 GNEWS_BASE = "https://news.google.com/rss/search?q={q}&hl=en-IN&gl=IN&ceid=IN:en"
 
 def crawl_google_news(session):
     events = []
     logger.info(f"  ── Google News RSS ({len(GNEWS_QUERIES)} targeted searches)")
-
     for label, query in GNEWS_QUERIES:
         url = GNEWS_BASE.format(q=quote(query))
         r = safe_get(session, url, timeout=20)
-        if not r:
-            continue
-
+        if not r: continue
         items = parse_rss(r.text, url)
         count = 0
         for title, link, pub, desc in items:
             kws = detect_keywords(f"{title} {desc}")
-            if not kws:
-                continue
+            if not kws: continue
             company = extract_company(title)
             kw, cat = kws[0]
             events.append(make_event(
@@ -857,20 +726,15 @@ def crawl_google_news(session):
                 meta={"gnews_query": query},
             ))
             count += 1
-
         logger.info(f"  [{query[:50]}]: {len(items)} items → {count} signals")
         time.sleep(0.6)
-
     logger.info(f"  Google News total: {len(events)} events")
     return events
-
 
 # ═══════════════════════════════════════════════
 # SOURCE 5: FINANCIAL + LEGAL MEDIA RSS
 # ═══════════════════════════════════════════════
-
 MEDIA_FEEDS = [
-    # Financial media
     ("Economic Times",    "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms"),
     ("Economic Times",    "https://economictimes.indiatimes.com/industry/rssfeeds/13352306.cms"),
     ("Economic Times",    "https://economictimes.indiatimes.com/news/company/rssfeeds/2143429.cms"),
@@ -885,7 +749,6 @@ MEDIA_FEEDS = [
     ("BusinessLine",      "https://www.thehindubusinessline.com/markets/feeder/default.rss"),
     ("NDTV Profit",       "https://feeds.feedburner.com/ndtvprofit-latest"),
     ("Zee Business",      "https://www.zeebiz.com/rss/india.xml"),
-    # Legal media
     ("SCC Online",        "https://www.scconline.com/blog/feed/"),
     ("Verdictum",         "https://verdictum.in/feed/"),
 ]
@@ -893,20 +756,16 @@ MEDIA_FEEDS = [
 def crawl_media_rss(session):
     events = []
     logger.info(f"  ── Financial + Legal Media RSS ({len(MEDIA_FEEDS)} feeds)")
-
     for name, url in MEDIA_FEEDS:
-        r = safe_get(session, url, timeout=20)
-        if not r:
-            continue
+        r = safe_get(session, url, timeout=15)
+        if not r: continue
         items = parse_rss(r.text, url)
         ev = events_from_feed(items, name, url)
         events.extend(ev)
         logger.info(f"  {name}: {len(items)} items → {len(ev)} signals")
         time.sleep(0.5)
-
     logger.info(f"  Media RSS total: {len(events)} events")
     return events
-
 
 # ═══════════════════════════════════════════════
 # DEDUPLICATION
@@ -924,18 +783,61 @@ def deduplicate(events):
             unique.append(e)
     return unique
 
+# ═══════════════════════════════════════════════
+# DB WRITE LOOP — shared by both paths
+# ═══════════════════════════════════════════════
+def write_to_db(events, run_id, t0):
+    events = deduplicate(events)
+    logger.info(f"After dedup  : {len(events)}")
+
+    try:
+        from enrichment import enrich_batch
+        events = enrich_batch(events)
+        logger.info("Enrichment complete (in-memory)")
+    except ImportError:
+        pass
+
+    inserted = skipped = failed = 0
+    for e in events:
+        if db_is_duplicate(e.get("company_name", ""), e.get("signal_keyword", ""), e.get("source", "")):
+            skipped += 1
+            continue
+        db_upsert_company(e.get("company_name", ""))
+        if db_insert(e):
+            inserted += 1
+        else:
+            failed += 1
+
+    try:
+        from enrichment import run_enrichment_on_db
+        run_enrichment_on_db(hours_back=1)
+    except ImportError:
+        pass
+
+    duration = round(time.time() - t0, 1)
+    logger.info(f"\n{'═'*55}")
+    logger.info(f"COMPLETE — Run {run_id}")
+    logger.info(f"Inserted : {inserted}")
+    logger.info(f"Skipped  : {skipped} (already today)")
+    logger.info(f"Failed   : {failed}")
+    logger.info(f"Duration : {duration}s")
+    logger.info(f"{'═'*55}")
+    return inserted, skipped, failed
 
 # ═══════════════════════════════════════════════
-# MAIN
+# INTELLIGENCE PIPELINE (distress group)
 # ═══════════════════════════════════════════════
-def run():
+def run_intelligence_pipeline(dry_run=False):
+    """
+    Runs the 5-source intelligence pipeline.
+    Called only when group == 'distress' or group == 'all'.
+    """
     if not SUPABASE_URL or not SUPABASE_ANON_KEY:
         logger.critical("SUPABASE_URL and SUPABASE_ANON_KEY must be set!")
         sys.exit(1)
 
     run_id = str(uuid.uuid4())[:8]
     t0     = time.time()
-
     logger.info(f"{'═'*55}")
     logger.info(f"NEXUS ASIA DISTRESS RADAR — Run {run_id}")
     logger.info(f"Started: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
@@ -959,109 +861,127 @@ def run():
     logger.info("\n━━ [5/5] Financial + Legal Media RSS")
     all_events.extend(crawl_media_rss(session))
 
-    # Store
     logger.info(f"\n{'─'*55}")
     logger.info(f"Raw events   : {len(all_events)}")
-    all_events = deduplicate(all_events)
-    logger.info(f"After dedup  : {len(all_events)}")
 
-    # ── Enrich before insert ────────────────────────────────────────────
-    try:
-        from enrichment import enrich_batch
-        all_events = enrich_batch(all_events)
-        logger.info("Enrichment complete (in-memory)")
-    except ImportError:
-        pass  # enrichment.py not yet available — skip
+    if dry_run:
+        all_events = deduplicate(all_events)
+        logger.info(f"DRY RUN — {len(all_events)} events (not written)")
+        for e in all_events[:10]:
+            logger.info(f"  {e.get('signal_category','?')} | {e.get('company_name','?')} | {e.get('headline','')[:80]}")
+        return
 
-    inserted = skipped = failed = 0
-    for e in all_events:
-        if db_is_duplicate(e["company_name"], e["signal_keyword"], e["source"]):
-            skipped += 1
-            continue
-        db_upsert_company(e["company_name"])
-        if db_insert(e):
-            inserted += 1
-        else:
-            failed += 1
+    write_to_db(all_events, run_id, t0)
 
-    # ── Post-insert DB enrichment (patches deal_score, channel, etc.) ───
-    try:
-        from enrichment import run_enrichment_on_db
-        run_enrichment_on_db(hours_back=1)
-    except ImportError:
-        pass
+# ═══════════════════════════════════════════════
+# CRAWLER GROUP RUNNER (all non-distress groups)
+# ═══════════════════════════════════════════════
+def run_crawler_group(group_name, dry_run=False):
+    """
+    Runs a specific crawler group from crawlers/.
+    Does NOT run the intelligence pipeline.
+    """
+    if not SUPABASE_URL or not SUPABASE_ANON_KEY:
+        logger.critical("SUPABASE_URL and SUPABASE_ANON_KEY must be set!")
+        sys.exit(1)
 
-    duration = round(time.time() - t0, 1)
-    logger.info(f"\n{'═'*55}")
-    logger.info(f"COMPLETE — Run {run_id}")
-    logger.info(f"Inserted : {inserted}")
-    logger.info(f"Skipped  : {skipped} (already today)")
-    logger.info(f"Failed   : {failed}")
-    logger.info(f"Duration : {duration}s")
+    from crawlers import (
+        DISTRESS_CRAWLERS, BANK_AUCTION_CRAWLERS, LEGAL_CRAWLERS,
+        CRE_CRAWLERS, ARC_CRAWLERS, MARKET_CRAWLERS, ALL_CRAWLERS,
+    )
+    GROUP_MAP = {
+        "distress":     DISTRESS_CRAWLERS,
+        "bank_auction": BANK_AUCTION_CRAWLERS,
+        "legal":        LEGAL_CRAWLERS,
+        "cre":          CRE_CRAWLERS,
+        "arc":          ARC_CRAWLERS,
+        "market":       MARKET_CRAWLERS,
+        "all":          ALL_CRAWLERS,
+    }
+    group = GROUP_MAP.get(group_name, DISTRESS_CRAWLERS)
+
+    run_id = str(uuid.uuid4())[:8]
+    t0     = time.time()
+    logger.info(f"{'═'*55}")
+    logger.info(f"NEXUS ASIA | Group: {group_name.upper()} | {len(group)} crawlers")
     logger.info(f"{'═'*55}")
 
+    all_ev = []
+    for Cls in group:
+        try:
+            inst = Cls()
+            ev   = inst.crawl()
+            evl  = [e.to_dict() if hasattr(e, "to_dict") else e for e in ev]
+            all_ev.extend(evl)
+            logger.info(f"  {inst.SOURCE_NAME}: {len(ev)} events")
+        except Exception as exc:
+            logger.error(f"  {Cls.__name__} failed: {exc}")
 
+    logger.info(f"\n{'─'*55}")
+    logger.info(f"Raw events   : {len(all_ev)}")
+
+    if dry_run:
+        all_ev = deduplicate(all_ev)
+        logger.info(f"DRY RUN — {len(all_ev)} events (not written)")
+        for e in all_ev[:10]:
+            logger.info(f"  {e.get('signal_category','?')} | {e.get('company_name','?')} | {e.get('headline','')[:80]}")
+        return
+
+    write_to_db(all_ev, run_id, t0)
+
+# ═══════════════════════════════════════════════
+# ENTRY POINT
+# ═══════════════════════════════════════════════
 if __name__ == "__main__":
-    run()
-
-
-# ══════════════════════════════════════════════════════════════════
-# ENTRY POINT — supports --group and --dry-run flags
-# ══════════════════════════════════════════════════════════════════
-if __name__ == "__main__":  # noqa: E402
-    import argparse
-
     parser = argparse.ArgumentParser(description="Nexus Asia Distress Radar")
     parser.add_argument(
         "--group",
         default="distress",
         choices=["all", "distress", "bank_auction", "legal", "cre", "arc", "market"],
-        help="Crawler group (default: distress)"
+        help="Crawler group to run (default: distress)"
     )
-    parser.add_argument("--dry-run", action="store_true",
-                        default=os.environ.get("DRY_RUN", "false").lower() == "true")
-    parser.add_argument("--source", default=None, help="Single crawler by name")
+    parser.add_argument(
+        "--dry-run", action="store_true",
+        default=os.environ.get("DRY_RUN", "false").lower() == "true",
+        help="Skip DB writes, print sample events"
+    )
+    parser.add_argument(
+        "--source", default=None,
+        help="Run a single crawler by name substring"
+    )
     args = parser.parse_args()
 
-    try:
-        from crawlers import (
-            DISTRESS_CRAWLERS, BANK_AUCTION_CRAWLERS, LEGAL_CRAWLERS,
-            CRE_CRAWLERS, ARC_CRAWLERS, MARKET_CRAWLERS, ALL_CRAWLERS,
-        )
-        GROUP_MAP = {
-            "distress": DISTRESS_CRAWLERS, "bank_auction": BANK_AUCTION_CRAWLERS,
-            "legal": LEGAL_CRAWLERS, "cre": CRE_CRAWLERS,
-            "arc": ARC_CRAWLERS, "market": MARKET_CRAWLERS, "all": ALL_CRAWLERS,
-        }
-        group = GROUP_MAP.get(args.group, DISTRESS_CRAWLERS)
-        if args.source:
-            group = [C for C in ALL_CRAWLERS if args.source.lower() in C.SOURCE_NAME.lower()] or group
-
-        logger.info(f"{'═'*55}\nNEXUS ASIA | Group: {args.group.upper()} | {len(group)} crawlers\n{'═'*55}")
-
+    if args.source:
+        # Single-crawler override: load group and filter by name
+        from crawlers import ALL_CRAWLERS
+        matched = [C for C in ALL_CRAWLERS if args.source.lower() in C.SOURCE_NAME.lower()]
+        if not matched:
+            logger.error(f"No crawler found matching '{args.source}'")
+            sys.exit(1)
+        run_id = str(uuid.uuid4())[:8]
+        t0     = time.time()
         all_ev = []
-        for Cls in group:
-            try:
-                inst = Cls()
-                ev = inst.crawl()
-                all_ev.extend(e.to_dict() if hasattr(e, "to_dict") else e for e in ev)
-                logger.info(f"  {inst.SOURCE_NAME}: {len(ev)} events")
-            except Exception as exc:
-                logger.error(f"  {Cls.__name__} failed: {exc}")
-
+        for Cls in matched:
+            inst = Cls()
+            ev   = inst.crawl()
+            all_ev.extend(e.to_dict() if hasattr(e, "to_dict") else e for e in ev)
+            logger.info(f"  {inst.SOURCE_NAME}: {len(ev)} events")
+        logger.info(f"Raw events: {len(all_ev)}")
         if args.dry_run:
-            logger.info(f"\nDRY RUN — {len(all_ev)} events not written")
-            for e in all_ev[:10]:
-                logger.info(f"  {e.get('signal_category','?')} | {e.get('company_name','?')} | {e.get('headline','')[:80]}")
+            logger.info("DRY RUN — not written")
         else:
-            all_ev = deduplicate(all_ev)
-            ins = sk = fa = 0
-            for e in all_ev:
-                if db_is_duplicate(e.get("company_name",""), e.get("signal_keyword",""), e.get("source","")):
-                    sk += 1; continue
-                db_upsert_company(e.get("company_name",""))
-                if db_insert(e): ins += 1
-                else: fa += 1
-            logger.info(f"DONE | inserted={ins} skipped={sk} failed={fa}")
-    except ImportError:
-        run()
+            write_to_db(all_ev, run_id, t0)
+
+    elif args.group == "distress":
+        # Intelligence pipeline: LiveLaw + Bar&Bench + RBI + Google News + Media RSS
+        run_intelligence_pipeline(dry_run=args.dry_run)
+
+    elif args.group == "all":
+        # Intelligence pipeline THEN all crawler groups
+        run_intelligence_pipeline(dry_run=args.dry_run)
+        run_crawler_group("all", dry_run=args.dry_run)
+
+    else:
+        # bank_auction / legal / cre / arc / market
+        # Pure crawler group — NO intelligence pipeline overhead
+        run_crawler_group(args.group, dry_run=args.dry_run)
