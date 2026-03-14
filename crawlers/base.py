@@ -25,10 +25,10 @@ SIGNAL_KEYWORDS = {
     "restructuring": ["restructuring", "debt restructuring", "ots", "one time settlement", "haircut"],
     "debt_resolution": ["debt resolution", "resolution plan", "settlement plan"],
     "creditor_action": ["creditor action", "lender action", "debt recovery tribunal", "drt", "enforcement action"],
-    "asset_auction": ["auction", "e-auction", "bank auction", "asset auction", "property auction", "reserve price"],
-    "nclt": ["nclt", "national company law tribunal", "iba 2016", "ibc", "insolvency code"],
-    "ibbi": ["ibbi", "insolvency board", "resolution applicant"],
-    "bankruptcy": ["bankruptcy", "bankrupt"],
+    "auction": ["auction", "e-auction", "bank auction", "asset auction", "property auction", "reserve price"],
+    "cirp": ["nclt", "national company law tribunal", "iba 2016", "ibc", "insolvency code"],
+    "regulatory": ["ibbi", "insolvency board", "resolution applicant"],
+    "insolvency": ["bankruptcy", "bankrupt"],
 }
 
 ALL_KEYWORDS = [kw for kws in SIGNAL_KEYWORDS.values() for kw in kws]
@@ -36,17 +36,17 @@ ALL_KEYWORDS = [kw for kws in SIGNAL_KEYWORDS.values() for kw in kws]
 SEVERITY_MAP = {
     "liquidation": "critical",
     "cirp": "critical",
-    "nclt": "high",
     "sarfaesi": "high",
-    "asset_auction": "high",
+    "auction": "high",
     "insolvency": "high",
     "default": "medium",
     "distressed_asset": "medium",
     "restructuring": "medium",
     "debt_resolution": "medium",
     "creditor_action": "medium",
-    "ibbi": "low",
-    "bankruptcy": "critical",
+    "regulatory": "low",
+    "financial_media": "low",
+    "other": "low",
 }
 
 
