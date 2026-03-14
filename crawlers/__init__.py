@@ -34,6 +34,7 @@ from .drt_sarfaesi import (
 )
 
 # ── Pre-leased CRE intelligence ──────────────────────────────────────────
+from .cap_rate_market import CapRateMarketCrawler
 from .pre_leased_cre import (
     PreLeasedCommercialCrawler,
     GradeAOfficeVacancyCrawler,
@@ -88,6 +89,7 @@ LEGAL_CRAWLERS = [
 ]
 
 CRE_CRAWLERS = [
+    CapRateMarketCrawler,   # weekly cap rate market intelligence
     PreLeasedCommercialCrawler,
     GradeAOfficeVacancyCrawler,
 ]
