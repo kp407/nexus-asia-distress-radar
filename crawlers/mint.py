@@ -1,5 +1,6 @@
 import logging
 import requests
+from .firecrawl_client import FirecrawlSession
 from bs4 import BeautifulSoup
 from .base import BaseCrawler, DistressEvent
 
@@ -16,7 +17,7 @@ class MintCrawler(BaseCrawler):
 
     def crawl(self):
         events = []
-        session = requests.Session()
+        session = FirecrawlSession()
         for url in self.CRAWL_URLS:
             try:
                 resp = self.safe_get(session, url)
