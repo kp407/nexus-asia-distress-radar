@@ -2993,31 +2993,46 @@ capRateData = [];
 capRateLoaded = false;
 
 const MUMBAI_BENCHMARKS = [
-  { market:"BKC",           class:"Grade A",  cap:5.8,  rent:350, note:"Core CBD" },
-  { market:"Lower Parel",   class:"Grade A",  cap:6.0,  rent:280, note:"Office corridor" },
-  { market:"Worli",         class:"Grade A",  cap:6.2,  rent:260, note:"Premium" },
-  { market:"Andheri",       class:"Grade A",  cap:6.8,  rent:150, note:"IT zone" },
-  { market:"Powai",         class:"Grade A",  cap:7.0,  rent:130, note:"Tech campus" },
-  { market:"Goregaon",      class:"Grade A",  cap:7.3,  rent:120, note:"SBD north" },
-  { market:"Malad",         class:"Grade A",  cap:7.5,  rent:115, note:"Suburban — ACTIVE DEAL" },
-  { market:"Kurla",         class:"Grade B",  cap:7.8,  rent:110, note:"— ACTIVE DEAL" },
-  { market:"Thane",         class:"Grade A",  cap:8.2,  rent:80,  note:"Suburban" },
-  { market:"Navi Mumbai",   class:"Grade A",  cap:8.5,  rent:75,  note:"✓ Meets threshold" },
-  { market:"Airoli/Belapur",class:"Grade B",  cap:9.2,  rent:65,  note:"✓ Exceeds threshold" },
-  { market:"Vashi",         class:"Grade A",  cap:8.8,  rent:80,  note:"✓ Node CBD" },
+  { market:"BKC",         cls:"Grade A", cap:5.28, rent:360, price_psf:75000, note:"Core CBD" },
+  { market:"Lower Parel", cls:"Grade A", cap:5.50, rent:290, price_psf:58000, note:"Office corridor" },
+  { market:"Worli",       cls:"Grade A", cap:5.72, rent:265, price_psf:51000, note:"Premium" },
+  { market:"Andheri",     cls:"Grade A", cap:6.09, rent:155, price_psf:28000, note:"IT zone" },
+  { market:"Powai",       cls:"Grade A", cap:6.46, rent:135, price_psf:23000, note:"Tech campus" },
+  { market:"Goregaon",    cls:"Grade A", cap:6.71, rent:122, price_psf:20000, note:"SBD north" },
+  { market:"Malad",       cls:"Grade A", cap:6.90, rent:118, price_psf:18800, note:"Suburban — ACTIVE DEAL ★" },
+  { market:"Kurla",       cls:"Grade B", cap:7.16, rent:112, price_psf:17200, note:"Commercial — ACTIVE DEAL ★" },
+  { market:"Vikhroli",    cls:"Grade B", cap:7.33, rent:102, price_psf:15300, note:"Eastern suburbs" },
+  { market:"Thane",       cls:"Grade A", cap:7.48, rent:83,  price_psf:12200, note:"Suburban" },
+  { market:"Navi Mumbai", cls:"Grade A", cap:7.80, rent:78,  price_psf:11000, note:"IT parks" },
+  { market:"Airoli",      cls:"Grade B", cap:8.25, rent:72,  price_psf:9600,  note:"✓ Meets threshold" },
+  { market:"Belapur",     cls:"Grade B", cap:8.42, rent:67,  price_psf:8750,  note:"✓ Meets threshold" },
+  { market:"Vashi",       cls:"Grade A", cap:8.05, rent:82,  price_psf:11200, note:"✓ Meets threshold" },
 ];
 
 async function loadCapRate() {
   try {
-    // Try to load from DB, fall back to hardcoded
     capRateData = await supabaseGet("cap_rate_snapshots", {
-      order: "cap_rate_pct.asc",
-      limit: 100,
+      order: "snapshot_date.asc",
+      limit: 500,
     });
   } catch(e) {
     capRateData = [];
   }
-  document.getElementById("navBadgeCapRate").textContent = MUMBAI_BENCHMARKS.length;
+  // Build latest + full history per market
+  const latestByMarket = {};
+  const historyByMarket = {};
+  for (const row of (capRateData || [])) {
+    const m = row.micro_market;
+    if (!historyByMarket[m]) historyByMarket[m] = [];
+    historyByMarket[m].push(row);
+    if (!latestByMarket[m] || row.snapshot_date > latestByMarket[m].snapshot_date) {
+      latestByMarket[m] = row;
+    }
+  }
+  window._capRateLatest  = latestByMarket;
+  window._capRateHistory = historyByMarket;
+  document.getElementById("navBadgeCapRate").textContent =
+    Object.keys(latestByMarket).length || MUMBAI_BENCHMARKS.length;
   capRateLoaded = true;
   renderCapRate();
 }
@@ -3031,23 +3046,36 @@ function computeCapRate(rentPsf, areaSqft, priceCr) {
 
 function renderCapRate() {
   const THRESHOLD = 8.5;
-  const INV_TARGET = 9.0;
+  const latest    = window._capRateLatest  || {};
+  const history   = window._capRateHistory || {};
+  const hasLive   = Object.keys(latest).length > 0;
 
-  // Build escalation table for investor pitch
-  function projectedYield(capRate, years, escRate, escFreq) {
-    let totalReturn = 0;
-    let yr1Yield = capRate / 100;
-    let curYield = yr1Yield;
-    for (let y = 1; y <= years; y++) {
-      if (y > 1 && (y-1) % escFreq === 0) curYield *= (1 + escRate);
-      totalReturn += curYield;
-    }
-    return (totalReturn * 100 / years).toFixed(1);
-  }
+  // Build display list: DB live data takes priority over hardcoded baseline
+  const displayMarkets = MUMBAI_BENCHMARKS.map(b => {
+    const live = latest[b.market];
+    return {
+      market:    b.market,
+      cls:       b.cls,
+      cap:       live ? parseFloat(live.cap_rate_pct) : b.cap,
+      rent:      live ? parseFloat(live.avg_rent_psf || b.rent) : b.rent,
+      note:      b.note,
+      isLive:    !!live,
+      source:    live ? (live.source || 'Market Intel') : 'Baseline Q1 2026',
+      snapDate:  live ? live.snapshot_date : null,
+      history:   history[b.market] || [],
+    };
+  });
+
+  // Last updated timestamp
+  const allDates = Object.values(latest).map(r => r.snapshot_date).filter(Boolean).sort();
+  const lastUpdate = allDates.length ? allDates[allDates.length - 1] : 'Baseline Q1 2026';
+
+  // ── Investor context bar ──
+  const avgMMR  = displayMarkets.filter(m => ['BKC','Lower Parel','Worli','Andheri','Powai'].includes(m.market));
+  const avgCore = avgMMR.length ? (avgMMR.reduce((a,m) => a+m.cap, 0)/avgMMR.length).toFixed(2) : '5.8';
 
   let html = `
-    <!-- Investor context bar -->
-    <div style="background:var(--bg-3);border:1px solid var(--border);padding:14px 18px;margin-bottom:24px;display:flex;flex-wrap:wrap;gap:20px;align-items:center;">
+    <div style="background:var(--bg-3);border:1px solid var(--border);padding:14px 18px;margin-bottom:20px;display:flex;flex-wrap:wrap;gap:20px;align-items:center;">
       <div>
         <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);margin-bottom:3px;">INVESTOR TARGET (LONDON GROUP)</div>
         <div style="font-family:var(--mono);font-size:20px;color:#f5a623;font-weight:700;">8.5–9.0%</div>
@@ -3055,115 +3083,200 @@ function renderCapRate() {
       </div>
       <div>
         <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);margin-bottom:3px;">PITCH STORY</div>
-        <div style="font-size:12px;color:var(--text-secondary);max-width:340px;">3 escalations × 15% over 10 years → average effective yield upgrade of ~4.5% above entry cap rate</div>
+        <div style="font-size:12px;color:var(--text-secondary);max-width:340px;">3 escalations \xd7 15% over 10 years \u2192 average effective yield upgrade of ~4.5% above entry cap rate</div>
       </div>
       <div style="margin-left:auto;text-align:right;">
-        <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);margin-bottom:3px;">MUMBAI GRADE A RANGE</div>
-        <div style="font-family:var(--mono);font-size:20px;color:#e8253a;font-weight:700;">5.8–7.5%</div>
-        <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);">Gap to investor target</div>
-      </div>
-    </div>
-
-    <!-- Cap rate bar chart by micro-market -->
-    <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:14px;">
-      ◈ CAP RATE BY MICRO-MARKET — INVESTOR THRESHOLD AT 8.5%
-    </div>
-    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:32px;">`;
-
-  const maxCap = 10;
-  MUMBAI_BENCHMARKS.forEach(b => {
-    const pct = (b.cap / maxCap * 100).toFixed(1);
-    const meetsThreshold = b.cap >= THRESHOLD;
-    const barColor = meetsThreshold ? "#00c896" : b.cap >= 7.0 ? "#f5a623" : "#e8253a";
-    const isActive = b.note.includes("ACTIVE DEAL");
-
-    html += `
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div style="font-family:var(--mono);font-size:10px;color:${isActive?"#f5a623":"var(--text-secondary)"};width:130px;text-align:right;flex-shrink:0;">
-          ${esc(b.market)}${isActive?' ★':''}
-        </div>
-        <div style="flex:1;background:var(--bg-3);height:22px;position:relative;border:1px solid var(--border);">
-          <div style="height:100%;width:${pct}%;background:${barColor}22;border-right:2px solid ${barColor};transition:width 0.4s;"></div>
-          <div style="position:absolute;top:50%;left:${Math.min(parseFloat(pct)+1,85)}%;transform:translateY(-50%);font-family:var(--mono);font-size:10px;color:${barColor};">${b.cap}%</div>
-          ${meetsThreshold?`<div style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:9px;color:#00c896;">✓ MEETS</div>`:""}
-        </div>
-        <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);width:80px;flex-shrink:0;">₹${b.rent}/psf</div>
-        <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);width:160px;flex-shrink:0;">${esc(b.note)}</div>
-      </div>`;
-  });
-
-  // Threshold marker
-  html += `
-      <div style="display:flex;align-items:center;gap:12px;margin-top:4px;">
-        <div style="width:130px;"></div>
-        <div style="flex:1;position:relative;height:14px;">
-          <div style="position:absolute;left:${(THRESHOLD/maxCap*100).toFixed(1)}%;top:0;width:2px;height:14px;background:#00c896;opacity:0.6;"></div>
-          <div style="position:absolute;left:${(THRESHOLD/maxCap*100+1).toFixed(1)}%;top:0;font-family:var(--mono);font-size:8px;color:#00c896;">INVESTOR THRESHOLD</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);margin-bottom:3px;">CORE MMR AVG</div>
+        <div style="font-family:var(--mono);font-size:20px;color:#e8253a;font-weight:700;">${avgCore}%</div>
+        <div style="font-family:var(--mono);font-size:9px;color:${hasLive?'#00c896':'var(--text-muted)'};">
+          ${hasLive ? '\u25cf LIVE — updated ' + lastUpdate : '\u25cb Baseline Q1 2026'}
         </div>
       </div>
     </div>`;
 
-  // 10-Year escalation projection table
+  // ── Trend section (only shown when DB has history) ──
+  const marketsWithHistory = displayMarkets.filter(m => m.history.length >= 2);
+  if (marketsWithHistory.length > 0) {
+    html += `
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:12px;">
+      \u25c8 CAP RATE TREND \u2014 WEEK-ON-WEEK MOVEMENT
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin-bottom:28px;">`;
+
+    for (const m of marketsWithHistory) {
+      const hist = m.history.sort((a,b) => a.snapshot_date.localeCompare(b.snapshot_date));
+      const first = parseFloat(hist[0].cap_rate_pct);
+      const last2 = hist.slice(-2);
+      const prev  = parseFloat(last2[0].cap_rate_pct);
+      const curr  = parseFloat(last2[1].cap_rate_pct);
+      const delta = curr - prev;
+      const totalDelta = curr - first;
+      const arrow = delta > 0.05 ? '\u2191' : delta < -0.05 ? '\u2193' : '\u2192';
+      const dColor = delta > 0.05 ? '#f5a623' : delta < -0.05 ? '#00c896' : 'var(--text-muted)';
+      // Compression = cap rate falling = good for existing holders, bad for new buyers
+      const trend = delta < -0.05 ? 'compressing' : delta > 0.05 ? 'expanding' : 'stable';
+      const meetsNow = curr >= THRESHOLD;
+
+      // Mini sparkline path
+      const allCaps = hist.map(h => parseFloat(h.cap_rate_pct));
+      const minC = Math.min(...allCaps) - 0.2;
+      const maxC = Math.max(...allCaps) + 0.2;
+      const range = maxC - minC || 1;
+      const W = 120, H = 32;
+      const pts = allCaps.map((c, i) => {
+        const x = (i / Math.max(allCaps.length - 1, 1)) * W;
+        const y = H - ((c - minC) / range) * H;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(' ');
+      const lineColor = meetsNow ? '#00c896' : curr >= 7.0 ? '#f5a623' : '#e8253a';
+
+      html += `
+      <div style="background:var(--bg-3);border:1px solid var(--border);padding:12px 14px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+          <div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--text-primary);font-weight:500;">${esc(m.market)}</div>
+            <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);">${esc(m.cls)} \u00b7 ${hist.length} snapshots</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-family:var(--mono);font-size:18px;font-weight:700;color:${lineColor};">${curr.toFixed(2)}%</div>
+            <div style="font-family:var(--mono);font-size:10px;color:${dColor};">${arrow} ${Math.abs(delta).toFixed(2)}% ${trend}</div>
+          </div>
+        </div>
+        <svg width="${W}" height="${H}" style="display:block;margin-bottom:6px;">
+          <polyline points="${pts}" fill="none" stroke="${lineColor}" stroke-width="1.5" opacity="0.9"/>
+          ${allCaps.map((c, i) => {
+            const x = (i / Math.max(allCaps.length - 1, 1)) * W;
+            const y = H - ((c - minC) / range) * H;
+            return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.5" fill="${lineColor}"/>`;
+          }).join('')}
+          <line x1="0" y1="${(H - ((THRESHOLD - minC) / range) * H).toFixed(1)}" x2="${W}" y2="${(H - ((THRESHOLD - minC) / range) * H).toFixed(1)}" stroke="#00c896" stroke-width="0.5" stroke-dasharray="3 3" opacity="0.5"/>
+        </svg>
+        <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:9px;color:var(--text-muted);">
+          <span>${hist[0].snapshot_date}</span>
+          <span style="color:${totalDelta<0?'#00c896':totalDelta>0?'#f5a623':'var(--text-muted)'};">
+            ${totalDelta > 0 ? '+' : ''}${totalDelta.toFixed(2)}% total
+          </span>
+          <span>${hist[hist.length-1].snapshot_date}</span>
+        </div>
+        ${meetsNow ? '<div style="font-family:var(--mono);font-size:8px;color:#00c896;margin-top:4px;">\u2713 MEETS INVESTOR THRESHOLD</div>' : ''}
+      </div>`;
+    }
+    html += `</div>`;
+  }
+
+  // ── Bar chart — current cap rates ──
   html += `
     <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:14px;">
-      ◈ 10-YEAR ESCALATION STORY — 15% EVERY 3 YEARS (PITCH TO INTERNATIONAL INVESTORS)
+      \u25c8 CURRENT CAP RATE BY MICRO-MARKET \u2014 THRESHOLD AT ${THRESHOLD}%
     </div>
-    <div style="overflow-x:auto;">
+    <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:28px;">`;
+
+  const maxCap = 10;
+  const sorted = [...displayMarkets].sort((a,b) => a.cap - b.cap);
+  sorted.forEach(m => {
+    const pct = (m.cap / maxCap * 100).toFixed(1);
+    const meetsThreshold = m.cap >= THRESHOLD;
+    const barColor = meetsThreshold ? "#00c896" : m.cap >= 7.0 ? "#f5a623" : "#e8253a";
+    const isActive = m.note.includes("ACTIVE");
+    const liveTag = m.isLive
+      ? `<span style="font-family:var(--mono);font-size:8px;background:#00c89611;color:#00c896;padding:1px 4px;margin-left:4px;">\u25cf LIVE ${m.snapDate||''}</span>`
+      : '';
+
+    html += `
+      <div style="display:flex;align-items:center;gap:10px;">
+        <div style="font-family:var(--mono);font-size:10px;color:${isActive?"#f5a623":"var(--text-secondary)"};width:120px;text-align:right;flex-shrink:0;">
+          ${esc(m.market)}
+        </div>
+        <div style="flex:1;background:var(--bg-3);height:22px;position:relative;border:1px solid var(--border);">
+          <div style="height:100%;width:${pct}%;background:${barColor}22;border-right:2px solid ${barColor};transition:width 0.5s;"></div>
+          <div style="position:absolute;top:50%;left:${Math.min(parseFloat(pct)+1,82)}%;transform:translateY(-50%);font-family:var(--mono);font-size:10px;color:${barColor};">${m.cap.toFixed(2)}%${liveTag}</div>
+          ${meetsThreshold?`<div style="position:absolute;right:6px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:9px;color:#00c896;">\u2713 MEETS</div>`:""}
+        </div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);width:70px;flex-shrink:0;">\u20b9${m.rent}/psf</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text-muted);width:150px;flex-shrink:0;">${esc(m.note)}</div>
+      </div>`;
+  });
+
+  // Threshold line marker
+  html += `
+      <div style="display:flex;align-items:center;gap:10px;margin-top:2px;">
+        <div style="width:120px;"></div>
+        <div style="flex:1;position:relative;height:12px;">
+          <div style="position:absolute;left:${(THRESHOLD/maxCap*100).toFixed(1)}%;top:0;width:2px;height:12px;background:#00c896;opacity:0.6;"></div>
+          <div style="position:absolute;left:${(THRESHOLD/maxCap*100+0.8).toFixed(1)}%;top:0;font-family:var(--mono);font-size:8px;color:#00c896;">INVESTOR THRESHOLD 8.5%</div>
+        </div>
+      </div>
+    </div>`;
+
+  // ── 10-year escalation table ──
+  html += `
+    <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:14px;">
+      \u25c8 10-YEAR ESCALATION STORY \u2014 15% EVERY 3 YEARS (PITCH TO INTERNATIONAL INVESTORS)
+    </div>
+    <div style="overflow-x:auto;margin-bottom:28px;">
       <table style="width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11px;">
         <thead>
           <tr style="background:var(--bg-3);border-bottom:1px solid var(--border);">
-            <th style="padding:8px 12px;text-align:left;color:var(--text-muted);font-size:9px;letter-spacing:0.08em;">MICRO-MARKET</th>
-            <th style="padding:8px 12px;text-align:center;color:var(--text-muted);font-size:9px;letter-spacing:0.08em;">ENTRY CAP</th>
-            <th style="padding:8px 12px;text-align:center;color:var(--text-muted);font-size:9px;letter-spacing:0.08em;">YR 3 (↑15%)</th>
-            <th style="padding:8px 12px;text-align:center;color:var(--text-muted);font-size:9px;letter-spacing:0.08em;">YR 6 (↑15%)</th>
-            <th style="padding:8px 12px;text-align:center;color:var(--text-muted);font-size:9px;letter-spacing:0.08em;">YR 9 (↑15%)</th>
-            <th style="padding:8px 12px;text-align:center;color:#f5a623;font-size:9px;letter-spacing:0.08em;">10YR AVG YIELD</th>
-            <th style="padding:8px 12px;text-align:center;color:var(--text-muted);font-size:9px;letter-spacing:0.08em;">STATUS</th>
+            <th style="padding:8px 12px;text-align:left;color:var(--text-muted);font-size:9px;">MICRO-MARKET</th>
+            <th style="padding:8px 12px;text-align:center;color:var(--text-muted);font-size:9px;">ENTRY CAP</th>
+            <th style="padding:8px 12px;text-align:center;color:var(--text-muted);font-size:9px;">YR 3 (+15%)</th>
+            <th style="padding:8px 12px;text-align:center;color:var(--text-muted);font-size:9px;">YR 6 (+15%)</th>
+            <th style="padding:8px 12px;text-align:center;color:var(--text-muted);font-size:9px;">YR 9 (+15%)</th>
+            <th style="padding:8px 12px;text-align:center;color:#f5a623;font-size:9px;">10YR AVG YIELD</th>
+            <th style="padding:8px 12px;text-align:center;color:var(--text-muted);font-size:9px;">STATUS</th>
           </tr>
         </thead>
         <tbody>`;
 
-  MUMBAI_BENCHMARKS.forEach(b => {
-    const c0 = b.cap;
-    const c3 = (c0 * 1.15).toFixed(1);
-    const c6 = (c0 * 1.15 * 1.15).toFixed(1);
-    const c9 = (c0 * 1.15 * 1.15 * 1.15).toFixed(1);
-    const avg = projectedYield(c0, 10, 0.15, 3);
+  sorted.forEach(m => {
+    const c0  = m.cap;
+    const c3  = (c0 * 1.15).toFixed(2);
+    const c6  = (c0 * 1.15 * 1.15).toFixed(2);
+    const c9  = (c0 * 1.15 * 1.15 * 1.15).toFixed(2);
+    // 10-yr avg yield
+    let curY = c0, total = 0;
+    for (let y = 1; y <= 10; y++) {
+      if (y > 1 && (y-1) % 3 === 0) curY *= 1.15;
+      total += curY;
+    }
+    const avg = (total / 10).toFixed(2);
     const meets = c0 >= THRESHOLD;
-    const isActive = b.note.includes("ACTIVE DEAL");
-    const rowBg = isActive ? "background:rgba(245,166,35,0.05);" : "";
+    const avgMeets = parseFloat(avg) >= THRESHOLD;
+    const isActive = m.note.includes("ACTIVE");
 
     html += `
-          <tr style="border-bottom:1px solid var(--border);${rowBg}" onmouseenter="this.style.background='var(--bg-3)'" onmouseleave="this.style.background='${isActive?"rgba(245,166,35,0.05)":"transparent"}'">
-            <td style="padding:8px 12px;color:${isActive?"#f5a623":"var(--text-primary)"};">${esc(b.market)}${isActive?" ★":""}</td>
-            <td style="padding:8px 12px;text-align:center;color:${meets?"#00c896":"#e8253a"};">${c0}%</td>
+          <tr style="border-bottom:1px solid var(--border);${isActive?'background:rgba(245,166,35,0.04);':''}"
+              onmouseenter="this.style.background='var(--bg-3)'"
+              onmouseleave="this.style.background='${isActive?'rgba(245,166,35,0.04)':'transparent'}'">
+            <td style="padding:8px 12px;color:${isActive?'#f5a623':'var(--text-primary)'};">
+              ${esc(m.market)}${m.isLive?` <span style="font-size:8px;color:#00c896;">\u25cf</span>`:''}
+            </td>
+            <td style="padding:8px 12px;text-align:center;color:${meets?'#00c896':'#e8253a'};">${c0.toFixed(2)}%</td>
             <td style="padding:8px 12px;text-align:center;color:var(--text-secondary);">${c3}%</td>
             <td style="padding:8px 12px;text-align:center;color:var(--text-secondary);">${c6}%</td>
             <td style="padding:8px 12px;text-align:center;color:var(--text-secondary);">${c9}%</td>
             <td style="padding:8px 12px;text-align:center;color:#f5a623;font-weight:500;">${avg}%</td>
             <td style="padding:8px 12px;text-align:center;">
               ${meets
-                ? '<span style="font-size:9px;background:#00c89622;color:#00c896;padding:2px 6px;">✓ THRESHOLD</span>'
-                : avg >= THRESHOLD
-                  ? '<span style="font-size:9px;background:#f5a62322;color:#f5a623;padding:2px 6px;">↑ ESCALATION STORY</span>'
+                ? '<span style="font-size:9px;background:#00c89622;color:#00c896;padding:2px 6px;">\u2713 THRESHOLD</span>'
+                : avgMeets
+                  ? '<span style="font-size:9px;background:#f5a62322;color:#f5a623;padding:2px 6px;">\u2191 ESCALATION STORY</span>'
                   : '<span style="font-size:9px;color:var(--text-muted);">PITCH REQD</span>'
               }
             </td>
           </tr>`;
   });
 
-  html += `
-        </tbody>
-      </table>
-    </div>
+  html += `</tbody></table></div>`;
 
-    <!-- Cap rate calculator -->
-    <div style="margin-top:28px;background:var(--bg-3);border:1px solid var(--border);padding:18px 20px;">
-      <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:14px;">◈ QUICK CAP RATE CALCULATOR</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:14px;">
+  // ── Calculator ──
+  html += `
+    <div style="background:var(--bg-3);border:1px solid var(--border);padding:18px 20px;">
+      <div style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--text-muted);margin-bottom:14px;">\u25c8 QUICK CAP RATE CALCULATOR</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px;">
         <div>
-          <label style="font-family:var(--mono);font-size:9px;color:var(--text-muted);display:block;margin-bottom:4px;">RENT (₹/sqft/month)</label>
-          <input type="number" id="calcRent" value="115" min="1"
+          <label style="font-family:var(--mono);font-size:9px;color:var(--text-muted);display:block;margin-bottom:4px;">RENT (\u20b9/sqft/month)</label>
+          <input type="number" id="calcRent" value="118" min="1"
             style="width:100%;background:var(--bg-2);border:1px solid var(--border-2);color:var(--text-primary);font-family:var(--mono);font-size:13px;padding:6px 10px;outline:none;"
             oninput="calcCapRate()"/>
         </div>
@@ -3174,7 +3287,7 @@ function renderCapRate() {
             oninput="calcCapRate()"/>
         </div>
         <div>
-          <label style="font-family:var(--mono);font-size:9px;color:var(--text-muted);display:block;margin-bottom:4px;">PRICE (₹ Crore)</label>
+          <label style="font-family:var(--mono);font-size:9px;color:var(--text-muted);display:block;margin-bottom:4px;">PRICE (\u20b9 Crore)</label>
           <input type="number" id="calcPrice" value="55" min="1"
             style="width:100%;background:var(--bg-2);border:1px solid var(--border-2);color:var(--text-primary);font-family:var(--mono);font-size:13px;padding:6px 10px;outline:none;"
             oninput="calcCapRate()"/>
@@ -3186,7 +3299,7 @@ function renderCapRate() {
             oninput="calcCapRate()"/>
         </div>
       </div>
-      <div id="calcResult" style="font-family:var(--mono);font-size:13px;color:var(--text-secondary);">—</div>
+      <div id="calcResult" style="font-family:var(--mono);font-size:13px;color:var(--text-secondary);">\u2014</div>
     </div>`;
 
   document.getElementById("caprateContent").innerHTML = html;
