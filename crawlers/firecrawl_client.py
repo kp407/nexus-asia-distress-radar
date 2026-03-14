@@ -71,9 +71,9 @@ FIRECRAWL_BASE    = "https://api.firecrawl.dev/v1"
 # Direct requests to these will always fail from GitHub Actions
 FIRECRAWL_DOMAINS = {
     # Property portals
-    "99acres.com",
+    # Note: 99acres and squareyards use extreme bot detection — Firecrawl
+    # tries but often fails. MagicBricks, JLL, KnightFrank work fine.
     "magicbricks.com",
-    "squareyards.com",
     "anarock.com",
     "jll.co.in",
     "cbre.co.in",
@@ -223,22 +223,22 @@ def firecrawl_scrape(url: str, wait_ms: int = 2000) -> Optional[FakeResponse]:
                 return FakeResponse(content, 200, url)
             else:
                 logger.warning(f"  Firecrawl returned success=false for {url}: {data}")
-                return None
+                return FakeResponse("", 503, url)
 
         elif r.status_code == 402:
             logger.error("  Firecrawl: payment required — check your plan/credits")
-            return None
+            return FakeResponse("", 402, url)
         elif r.status_code == 429:
             logger.warning("  Firecrawl: rate limited — waiting 10s")
             time.sleep(10)
             return firecrawl_scrape(url, wait_ms)  # one retry
         else:
             logger.warning(f"  Firecrawl HTTP {r.status_code} for {url}: {r.text[:200]}")
-            return None
+            return FakeResponse("", r.status_code, url)
 
     except Exception as e:
         logger.error(f"  Firecrawl request failed for {url}: {e}")
-        return None
+        return FakeResponse("", 503, url)
 
 
 def firecrawl_crawl(
@@ -373,8 +373,10 @@ class FirecrawlSession:
                 "Add secret in GitHub → Settings → Secrets → FIRECRAWL_API_KEY"
             )
 
+    @property
     def headers(self):
-        """Allows session.headers.update() calls from existing crawlers."""
+        """Returns the underlying session headers dict.
+        Allows session.headers.update() calls from existing crawlers."""
         return self._session.headers
 
     def get(self, url: str, **kwargs) -> Optional[requests.Response]:
@@ -385,7 +387,6 @@ class FirecrawlSession:
         """
         if self._firecrawl_available and _needs_firecrawl(url):
             logger.info(f"  → Firecrawl: {url[:70]}")
-            # Use longer wait for JS-heavy ARC and govt portals
             domain = _get_domain(url)
             wait = 4000 if any(d in domain for d in [
                 "drt.gov.in", "nclt.gov.in", "ibbi.gov.in", "mca.gov.in",
@@ -394,7 +395,10 @@ class FirecrawlSession:
             ]) else self.firecrawl_wait_ms
 
             resp = firecrawl_scrape(url, wait_ms=wait)
-            return resp
+            # Return None for failures so safe_get() handles it cleanly
+            if resp and resp.status_code == 200:
+                return resp
+            return None
         else:
             # Direct request for non-blocked domains
             timeout = kwargs.pop("timeout", 20)
