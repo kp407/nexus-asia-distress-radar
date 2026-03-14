@@ -31,6 +31,7 @@ import time
 import math
 import logging
 import requests
+from .firecrawl_client import FirecrawlSession
 from bs4 import BeautifulSoup
 from urllib.parse import quote
 from .base import BaseCrawler, DistressEvent
@@ -266,7 +267,7 @@ class PreLeasedCommercialCrawler(BaseCrawler):
 
     def crawl(self) -> list[DistressEvent]:
         events = []
-        session = requests.Session()
+        session = FirecrawlSession()
 
         # 1. Direct property portal crawl
         for url in self.CRAWL_URLS:
@@ -464,7 +465,7 @@ class GradeAOfficeVacancyCrawler(BaseCrawler):
 
     def crawl(self) -> list[DistressEvent]:
         events = []
-        session = requests.Session()
+        session = FirecrawlSession()
 
         # 1. IPC research RSS
         for source_name, feed_url in self.RESEARCH_SOURCES:
