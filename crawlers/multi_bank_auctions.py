@@ -27,6 +27,7 @@ import re
 import json
 import logging
 import requests
+from .firecrawl_client import FirecrawlSession
 from bs4 import BeautifulSoup
 from .base import BaseCrawler, DistressEvent
 
@@ -239,7 +240,7 @@ def row_to_event(crawler, row):
     return crawler.make_event(
         company_name=company,
         keyword='asset auction',
-        category='auction',
+        category='asset_auction',
         url=row['url'],
         headline=headline,
         snippet=row['text'],
@@ -289,7 +290,7 @@ class IBAPIAuctionCrawler(BaseCrawler):
 
     def crawl(self):
         events  = []
-        session = requests.Session()
+        session = FirecrawlSession()
         session.headers.update({
             **self.HEADERS,
             'Accept': 'application/json, text/html, */*',
@@ -381,7 +382,7 @@ class IBAPIAuctionCrawler(BaseCrawler):
             events.append(self.make_event(
                 company_name=f'{bank} Auction{loc_label} [{asset_label}]',
                 keyword='asset auction',
-                category='auction',
+                category='asset_auction',
                 url=str(item_url),
                 headline=headline,
                 snippet=prop_desc[:800],
@@ -429,7 +430,7 @@ class BankAuctionsCoInCrawler(BaseCrawler):
     def crawl(self):
         events  = []
         seen    = set()
-        session = requests.Session()
+        session = FirecrawlSession()
         session.headers.update({**self.HEADERS, 'Referer': self.SOURCE_URL})
 
         for url, hint_city, hint_class in self.CRAWL_URLS:
@@ -491,7 +492,7 @@ class BankAuctionsCoInCrawler(BaseCrawler):
                 events.append(self.make_event(
                     company_name=f'{bank} Auction{loc_label} [{asset_label}]',
                     keyword='asset auction',
-                    category='auction',
+                    category='asset_auction',
                     url=card_url,
                     headline=headline,
                     snippet=text[:700],
@@ -534,7 +535,7 @@ class SarfaesiDotComCrawler(BaseCrawler):
     def crawl(self):
         events  = []
         seen    = set()
-        session = requests.Session()
+        session = FirecrawlSession()
         session.headers.update(self.HEADERS)
 
         for url in self.CRAWL_URLS:
@@ -578,7 +579,7 @@ class SarfaesiDotComCrawler(BaseCrawler):
                 auction_date = extract_auction_date(text)
                 score        = deal_score(price, location, is_mmr, asset_class)
                 is_possession = 'possession' in url
-                category     = 'sarfaesi' if is_possession else 'auction'
+                category     = 'sarfaesi' if is_possession else 'asset_auction'
                 keyword      = 'sarfaesi' if is_possession else 'asset auction'
 
                 company  = borrower[:60] if len(borrower) > 4 else f'{bank} SARFAESI Notice'
@@ -625,7 +626,7 @@ class _DirectBankCrawler(BaseCrawler):
 
     def crawl(self):
         events  = []
-        session = requests.Session()
+        session = FirecrawlSession()
         session.headers.update(self.HEADERS)
         for url in self.CRAWL_URLS:
             resp = self.safe_get(session, url, timeout=20)
@@ -731,7 +732,7 @@ class SBIAuctionCrawler(BaseCrawler):
     def crawl(self):
         events  = []
         seen    = set()
-        session = requests.Session()
+        session = FirecrawlSession()
         session.headers.update(self.HEADERS)
 
         for url in self.CRAWL_URLS:
@@ -770,7 +771,7 @@ class SBIAuctionCrawler(BaseCrawler):
                 events.append(self.make_event(
                     company_name=f'SBI Auction{loc_label} [{asset_label}]',
                     keyword='asset auction',
-                    category='auction',
+                    category='asset_auction',
                     url=full_url,
                     headline=headline,
                     snippet=text,
