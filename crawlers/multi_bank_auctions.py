@@ -807,3 +807,15 @@ ALL_BANK_AUCTION_CRAWLERS = [
     IndianOverseasBankAuctionCrawler,
     SBIAuctionCrawler,
 ]
+
+
+# ─────────────────────────────────────────────────────────────
+# BACKWARDS COMPATIBILITY ALIAS
+# narcl_arc.py and pre_leased_cre.py import detect_mmr_location
+# from this module. We renamed it to detect_location but keep
+# this alias so those imports don't break.
+# ─────────────────────────────────────────────────────────────
+def detect_mmr_location(text: str) -> str | None:
+    """Alias for detect_location() — returns location name only (no is_mmr)."""
+    loc, _ = detect_location(text)
+    return loc
